@@ -1,8 +1,12 @@
-use leptos::prelude::*;
-use leptos_meta::{provide_meta_context, MetaTags, Stylesheet, Title};
+use leptos::{
+    ev,
+    html::{button, h1},
+    prelude::*,
+};
+use leptos_meta::{MetaTags, Stylesheet, Title, provide_meta_context};
 use leptos_router::{
-    components::{Route, Router, Routes},
     StaticSegment,
+    components::{Route, Router, Routes},
 };
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
@@ -52,8 +56,15 @@ fn HomePage() -> impl IntoView {
     let count = RwSignal::new(0);
     let on_click = move |_| *count.write() += 1;
 
-    view! {
-        <h1>"Welcome to Leptos!"</h1>
-        <button on:click=on_click>"Click Me: " {count}</button>
-    }
+    // view! {
+    //     <h1>"Welcome to Leptos!"</h1>
+    //     <button on:click=on_click>"Click Me: " {count}</button>
+    // }
+
+    (
+        h1().child("Welcome to Leptos!"),
+        button()
+            .on(ev::click, on_click)
+            .child(("Click Me: ", count)),
+    )
 }
