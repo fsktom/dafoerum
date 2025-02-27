@@ -1,0 +1,4 @@
+[rustfmt]
+overrideCommand = ["leptosfmt", "--stdin", "--rustfmt"]
+
+# https://github.com/bram209/leptosfmt
