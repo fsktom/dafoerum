@@ -1,0 +1,21 @@
+{
+  // https://github.com/bram209/leptosfmt#configure-ra
+  "rust-analyzer.rustfmt.overrideCommand": [
+    "leptosfmt",
+    "--stdin",
+    "--rustfmt"
+  ],
+  "rust-analyzer.procMacro.ignored": {
+    "leptos_macro": ["server"]
+  },
+  // https://book.leptos.dev/getting_started/leptos_dx.html
+  //   "rust-analyzer.cargo.features": ["ssr"]
+  // https://github.com/tailwindlabs/tailwindcss-intellisense/issues/546#issuecomment-1121102708
+  "tailwindCSS.includeLanguages": {
+    "rust": "html"
+  },
+  // https://github.com/tailwindlabs/tailwindcss-intellisense#editorquicksuggestions
+  "editor.quickSuggestions": {
+    "strings": "on"
+  }
+}
