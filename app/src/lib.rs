@@ -36,15 +36,11 @@ pub fn App() -> impl IntoView {
 
       // content for this welcome page
       <Router>
-        <header class="flex justify-around items-center p-6 w-full bg-slate-200">
-          <h1>"gay"</h1>
-        </header>
-        <main>
+        <main class="flex flex-col gap-10 items-center">
           <Routes fallback=|| "Page not found.".into_view()>
             <Route path=StaticSegment("") view=HomePage />
           </Routes>
         </main>
-        <footer></footer>
       </Router>
     }
 }
@@ -65,14 +61,21 @@ fn HomePage() -> impl IntoView {
         "Click Me: "
         {count}
       </button>
+      <Post />
     }
+}
 
-    // (
-    //     h1().class("text-xl")
-    //         .class("text-red-500")
-    //         .child("Welcome to Leptos!"),
-    //     button()
-    //         .on(ev::click, on_click)
-    //         .child(("Click Me: ", count)),
-    // )
+#[component]
+fn Post() -> impl IntoView {
+    let now = jiff::Timestamp::now();
+    let date = jiff::tz::Offset::UTC.to_datetime(now);
+
+    view! {
+      <article class="p-4 w-1/3 bg-amber-200">
+        <h3>{date.to_string()}</h3>
+        <p>
+          "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque a urna vel purus feugiat ultrices in in ipsum. Vestibulum sollicitudin pretium arcu, elementum ultrices erat sollicitudin ac. Morbi ornare lectus ut scelerisque porttitor. Curabitur faucibus nulla non ipsum ultricies interdum. Vestibulum dapibus enim ante, id ullamcorper ex placerat a. Vestibulum volutpat dui id dapibus aliquam. Sed facilisis ullamcorper mi eget fermentum."
+        </p>
+      </article>
+    }
 }
