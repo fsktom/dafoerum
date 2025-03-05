@@ -15,6 +15,7 @@ http.workspace = true
 cfg-if.workspace = true
 thiserror.workspace = true
 jiff = { workspace = true, features = ["js"]}
+serde.workspace = true
 
 [features]
 default = []
