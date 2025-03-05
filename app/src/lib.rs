@@ -1,3 +1,5 @@
+mod spooky;
+
 use jiff::ToSpan;
 use leptos::{logging, prelude::*, task::spawn_local};
 use leptos_meta::{MetaTags, Stylesheet, Title, provide_meta_context};
@@ -71,17 +73,29 @@ fn HomePage() -> impl IntoView {
 
 #[component]
 fn Posts() -> impl IntoView {
-    let posts = [2, 3, 4]
-        .map(|n| {
-            view! {
-              <Post id=n />
-              <br />
-            }
+    let psts = Resource::new(|| (), |_| spooky::get_db_posts());
+    let postss = move || {
+        Suspend::new(async move {
+            let posts = psts.await.unwrap();
+            posts
+                .into_iter()
+                .map(|p| {
+                    view! {
+                      <li>
+                        <article>
+                          <h3>"Post #"{p.id}</h3>
+                          <p>{p.content}</p>
+                        </article>
+                      </li>
+                    }
+                })
+                .collect_view()
         })
-        .collect_view();
+    };
+
     view! {
       <Title text="Them Posts" />
-      {posts}
+      <ul>{postss}</ul>
     }
 }
 
