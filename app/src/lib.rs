@@ -4,6 +4,7 @@ use leptos_meta::{MetaTags, Stylesheet, Title, provide_meta_context};
 use leptos_router::{
     StaticSegment,
     components::{Route, Router, Routes},
+    path,
 };
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
@@ -40,6 +41,7 @@ pub fn App() -> impl IntoView {
         <main class="flex flex-col gap-10 items-center">
           <Routes fallback=|| "Page not found.".into_view()>
             <Route path=StaticSegment("") view=HomePage />
+            <Route path=path!("/posts") view=Posts />
           </Routes>
         </main>
       </Router>
@@ -62,12 +64,29 @@ fn HomePage() -> impl IntoView {
         "Click Me: "
         {count}
       </button>
-      <Post />
+      <a href="/posts">"See Posts"</a>
+      <Post id=1 />
     }
 }
 
 #[component]
-fn Post() -> impl IntoView {
+fn Posts() -> impl IntoView {
+    let posts = [2, 3, 4]
+        .map(|n| {
+            view! {
+              <Post id=n />
+              <br />
+            }
+        })
+        .collect_view();
+    view! {
+      <Title text="Them Posts" />
+      {posts}
+    }
+}
+
+#[component]
+fn Post(id: usize) -> impl IntoView {
     let now = jiff::Timestamp::now();
     let date = jiff::tz::db()
         .get("Europe/Berlin")
@@ -92,6 +111,7 @@ fn Post() -> impl IntoView {
         >
           "Increase date"
         </button>
+        <p>"Post #"{id}</p>
         <p>
           "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque a urna vel purus feugiat ultrices in in ipsum. Vestibulum sollicitudin pretium arcu, elementum ultrices erat sollicitudin ac. Morbi ornare lectus ut scelerisque porttitor. Curabitur faucibus nulla non ipsum ultricies interdum. Vestibulum dapibus enim ante, id ullamcorper ex placerat a. Vestibulum volutpat dui id dapibus aliquam. Sed facilisis ullamcorper mi eget fermentum."
         </p>
