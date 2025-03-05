@@ -1,5 +1,5 @@
 use jiff::ToSpan;
-use leptos::prelude::*;
+use leptos::{logging, prelude::*, task::spawn_local};
 use leptos_meta::{MetaTags, Stylesheet, Title, provide_meta_context};
 use leptos_router::{
     StaticSegment,
@@ -98,9 +98,18 @@ fn Post(id: usize) -> impl IntoView {
         .unwrap();
 
     let date = RwSignal::new(date);
-    let on_click = move |_| *date.write() += 1.day();
+    let on_click = move |_| {
+        *date.write() += 1.day();
+        let w = date.get().to_string();
+        spawn_local(async {
+            let Ok(a) = gay(w).await else { unreachable!() };
+            logging::log!("client only {a}")
+        });
+    };
 
     let display_date = move || format!("{} - {:#?}", date(), date().weekday());
+
+    logging::log!("post with {id}");
 
     view! {
       <article class="flex flex-col p-4 w-1/3 bg-amber-200">
@@ -117,4 +126,10 @@ fn Post(id: usize) -> impl IntoView {
         </p>
       </article>
     }
+}
+
+#[server(endpoint = "gay")]
+pub async fn gay(word: String) -> Result<String, ServerFnError> {
+    logging::log!("{word} things happening only on server");
+    Ok("WTF".to_string())
 }
