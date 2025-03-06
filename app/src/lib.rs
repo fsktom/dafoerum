@@ -1,4 +1,5 @@
-mod spooky;
+mod api;
+mod forum;
 
 use jiff::ToSpan;
 use leptos::{logging, prelude::*, task::spawn_local};
@@ -67,13 +68,15 @@ fn HomePage() -> impl IntoView {
         {count}
       </button>
       <a href="/posts">"See Posts"</a>
-      <Post id=1 />
+      <ArticleDate id=1 />
     }
 }
 
 #[component]
 fn Posts() -> impl IntoView {
-    let psts = Resource::new(|| (), |_| spooky::get_db_posts());
+    let create_post = ServerAction::<api::CreatePost>::new();
+
+    let psts = Resource::new(move || create_post.version().get(), |_| api::get_db_posts());
     let postss = move || {
         Suspend::new(async move {
             let posts = psts.await.unwrap();
@@ -82,10 +85,7 @@ fn Posts() -> impl IntoView {
                 .map(|p| {
                     view! {
                       <li>
-                        <article>
-                          <h3>"Post #"{p.id}</h3>
-                          <p>{p.content}</p>
-                        </article>
+                        <forum::PostItem post=p />
                       </li>
                     }
                 })
@@ -95,12 +95,16 @@ fn Posts() -> impl IntoView {
 
     view! {
       <Title text="Them Posts" />
-      <ul>{postss}</ul>
+      <ol class="flex flex-col gap-2">{postss}</ol>
+      <ActionForm action=create_post>
+        <input type="text" name="content" class="bg-red-300" />
+        <input type="submit" value="Create" />
+      </ActionForm>
     }
 }
 
 #[component]
-fn Post(id: usize) -> impl IntoView {
+fn ArticleDate(id: usize) -> impl IntoView {
     let now = jiff::Timestamp::now();
     let date = jiff::tz::db()
         .get("Europe/Berlin")
