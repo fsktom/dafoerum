@@ -14,17 +14,46 @@ struct Counter {
 pub struct Post {
     pub id: usize,
     pub content: String,
-    pub created_at: String,
+    pub created_at: jiff::Timestamp,
+}
+impl Post {
+    /// 2025-03-07T02:12:38+01:00
+    pub fn date_in_berlin(&self) -> String {
+        self.created_at
+            .in_tz("Europe/Berlin")
+            .unwrap()
+            .strftime("%FT%T%:z")
+            .to_string()
+    }
+}
+#[cfg(feature = "ssr")]
+impl From<PostDB> for Post {
+    fn from(value: PostDB) -> Self {
+        Post {
+            id: value.id,
+            content: value.content,
+            created_at: jiff::Timestamp::from_millisecond(value.created_at.timestamp_millis())
+                .expect("bad mongo"),
+        }
+    }
+}
+
+#[cfg(feature = "ssr")]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PostDB {
+    pub id: usize,
+    pub content: String,
+    pub created_at: bson::DateTime,
 }
 
 #[server(endpoint = "whos")]
 pub async fn get_db_posts() -> Result<Vec<Post>, ServerFnError> {
     let db = use_context::<Database>().unwrap();
-    let a = db.collection::<Post>("posts");
+    let a = db.collection::<PostDB>("posts");
     let mut psts = vec![];
     let mut c = a.find(bson::doc! {}).await.unwrap();
     while c.advance().await.unwrap() {
-        psts.push(c.deserialize_current().unwrap());
+        psts.push(Post::from(c.deserialize_current().unwrap()));
     }
     Ok(psts)
 }
@@ -44,12 +73,12 @@ pub async fn create_post(content: String) -> Result<(), ServerFnError> {
         .unwrap()
         .sequence;
 
-    let post_col = db.collection::<Post>("posts");
+    let post_col = db.collection::<PostDB>("posts");
 
-    let p = Post {
+    let p = PostDB {
         id: id + 1,
         content,
-        created_at: bson::DateTime::now().to_string(),
+        created_at: bson::DateTime::now(),
     };
 
     post_col.insert_one(&p).await.unwrap();

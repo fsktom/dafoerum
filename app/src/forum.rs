@@ -5,12 +5,15 @@ use leptos::prelude::*;
 #[component]
 pub fn PostItem(post: api::Post) -> impl IntoView {
     view! {
-      <article class="flex flex-col p-4 bg-amber-200 border border-amber-400">
+      <article class="p-6 max-w-sm bg-white rounded-lg border border-gray-200 shadow-sm0">
         <div class="flex justify-between">
-          <h3>"Posted at "{post.created_at}</h3>
-          <h3>"Post #"{post.id}</h3>
+          <h6 class="mb-2 text-xs font-bold tracking-tight text-gray-900">
+            "Posted at "<time datetime=post.date_in_berlin()>{post.date_in_berlin()}</time>
+          </h6>
+          <h6 class="mb-2 text-xs font-bold tracking-tight text-gray-900">"Post #"{post.id}</h6>
         </div>
-        <p>{post.content}</p>
+        // to render newlines
+        <p class="mb-3 font-normal text-gray-700 whitespace-pre-wrap break-words">{post.content}</p>
       </article>
     }
 }

@@ -77,6 +77,9 @@ fn Posts() -> impl IntoView {
     let create_post = ServerAction::<api::CreatePost>::new();
 
     let psts = Resource::new(move || create_post.version().get(), |_| api::get_db_posts());
+
+    let (comment, set_comment) = signal(String::new());
+
     let postss = move || {
         Suspend::new(async move {
             let posts = psts.await.unwrap();
@@ -96,9 +99,29 @@ fn Posts() -> impl IntoView {
     view! {
       <Title text="Them Posts" />
       <ol class="flex flex-col gap-2">{postss}</ol>
-      <ActionForm action=create_post>
-        <input type="text" name="content" class="bg-red-300" />
-        <input type="submit" value="Create" />
+      // https://flowbite.com/docs/forms/textarea/#comment-box
+      <ActionForm
+        action=create_post
+        attr:class="w-full mb-4 border border-gray-200 rounded-lg bg-gray-50"
+        // clear textarea after comment posted
+        // TODO: don't clear if posting fails :))))
+        // maybe easy but I'm stoopid -> only plausible option would be to react to Vec<Post> changes
+        on:submit=move |_| { set_comment(String::new()) }
+      >
+        <textarea
+          name="content"
+          rows="5"
+          placeholder="Write a post..."
+          prop:value=comment
+          class="py-2 px-4 w-full text-sm text-gray-900 bg-white rounded-t-lg border-0 focus:ring-0 placeholder:italic"
+        ></textarea>
+        <div class="flex justify-between items-center py-2 px-3 border-t border-gray-200">
+          <input
+            type="submit"
+            value="Create Post"
+            class="inline-flex items-center py-2.5 px-4 text-xs font-medium text-center text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:ring-blue-200 dark:focus:ring-blue-900"
+          />
+        </div>
       </ActionForm>
     }
 }
