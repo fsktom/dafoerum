@@ -49,13 +49,17 @@ pub struct PostDB {
 #[server(endpoint = "whos")]
 pub async fn get_db_posts() -> Result<Vec<Post>, ServerFnError> {
     let db = use_context::<Database>().unwrap();
-    let a = db.collection::<PostDB>("posts");
-    let mut psts = vec![];
-    let mut c = a.find(bson::doc! {}).await.unwrap();
-    while c.advance().await.unwrap() {
-        psts.push(Post::from(c.deserialize_current().unwrap()));
+    let post_col = db.collection::<PostDB>("posts");
+    let mut posts = vec![];
+    let mut post_cursor = post_col
+        .find(bson::doc! {})
+        .sort(bson::doc! {"id": -1})
+        .await
+        .unwrap();
+    while post_cursor.advance().await.unwrap() {
+        posts.push(Post::from(post_cursor.deserialize_current().unwrap()));
     }
-    Ok(psts)
+    Ok(posts)
 }
 
 #[server]
@@ -75,13 +79,13 @@ pub async fn create_post(content: String) -> Result<(), ServerFnError> {
 
     let post_col = db.collection::<PostDB>("posts");
 
-    let p = PostDB {
+    let new_post = PostDB {
         id: id + 1,
         content,
         created_at: bson::DateTime::now(),
     };
 
-    post_col.insert_one(&p).await.unwrap();
+    post_col.insert_one(&new_post).await.unwrap();
 
     Ok(())
 }

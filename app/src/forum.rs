@@ -5,7 +5,7 @@ use leptos::prelude::*;
 #[component]
 pub fn PostItem(post: api::Post) -> impl IntoView {
     view! {
-      <article class="p-6 max-w-sm bg-white rounded-lg border border-gray-200 shadow-sm0">
+      <article class="p-6 w-full max-w-md bg-white rounded-lg border border-gray-200 shadow-sm0">
         <div class="flex justify-between">
           <h6 class="mb-2 text-xs font-bold tracking-tight text-gray-900">
             "Posted at "<time datetime=post.date_in_berlin()>{post.date_in_berlin()}</time>
