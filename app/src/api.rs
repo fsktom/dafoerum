@@ -46,7 +46,25 @@ pub struct PostDB {
     pub created_at: bson::DateTime,
 }
 
-#[server(endpoint = "whos")]
+/// Fetches the latest `num` [`Posts`][Post] from the databse
+#[server]
+pub async fn get_latest_posts(num: i64) -> Result<Vec<Post>, ServerFnError> {
+    let db = use_context::<Database>().unwrap();
+    let post_col = db.collection::<PostDB>("posts");
+    let mut posts = vec![];
+    let mut post_cursor = post_col
+        .find(bson::doc! {})
+        .sort(bson::doc! {"id":-1})
+        .limit(num)
+        .await
+        .unwrap();
+    while post_cursor.advance().await.unwrap() {
+        posts.push(Post::from(post_cursor.deserialize_current().unwrap()));
+    }
+    Ok(posts)
+}
+
+#[server]
 pub async fn get_db_posts() -> Result<Vec<Post>, ServerFnError> {
     let db = use_context::<Database>().unwrap();
     let post_col = db.collection::<PostDB>("posts");
