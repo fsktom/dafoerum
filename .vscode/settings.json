@@ -17,5 +17,6 @@
   // https://github.com/tailwindlabs/tailwindcss-intellisense#editorquicksuggestions
   "editor.quickSuggestions": {
     "strings": "on"
-  }
+  },
+  "editor.tabSize": 4
 }
