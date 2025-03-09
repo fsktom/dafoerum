@@ -79,6 +79,7 @@ pub struct Thread {
     pub id: u32,
     pub origin_post_id: u32,
     pub subject: String,
+    pub forum_id: u32,
 }
 impl CollectionName for Thread {
     fn collection_name() -> &'static str {
@@ -153,15 +154,64 @@ pub async fn get_threads() -> Result<Vec<Thread>, ApiError> {
     let db = get_db()?;
     let thread_col = Thread::collection(&db);
     let mut threads = vec![];
-    let mut threads_curor = thread_col
+    let mut threads_cursor = thread_col
         .find(bson::doc! {})
         // descending
         .sort(bson::doc! {"id": -1})
         .await?;
-    while threads_curor.advance().await? {
-        threads.push(threads_curor.deserialize_current()?);
+    while threads_cursor.advance().await? {
+        threads.push(threads_cursor.deserialize_current()?);
     }
     Ok(threads)
+}
+
+/// Tries to create a [`Thread`] within the given forum and with a [`Post`] of `post_content`
+#[server]
+pub async fn create_thread(
+    forum_id: u32,
+    subject: String,
+    post_content: String,
+) -> Result<(), ApiError> {
+    let db = get_db()?;
+    let counter_col = Counter::collection(&db);
+    let thread_id = counter_col
+        .find_one_and_update(
+            bson::doc! {"category": "thread"},
+            bson::doc! {"$inc": {"sequence": 1}},
+        )
+        .await?
+        .unwrap()
+        .sequence
+        + 1;
+
+    let post_col = PostDb::collection(&db);
+    let post_id = counter_col
+        .find_one_and_update(
+            bson::doc! {"category": "post"},
+            bson::doc! {"$inc": {"sequence": 1}},
+        )
+        .await?
+        .unwrap()
+        .sequence
+        + 1;
+    let new_post = PostDb {
+        id: post_id,
+        content: post_content,
+        created_at: bson::DateTime::now(),
+        thread_id,
+    };
+    post_col.insert_one(&new_post).await?;
+
+    let thread_col = Thread::collection(&db);
+    let new_thread = Thread {
+        id: thread_id,
+        origin_post_id: post_id,
+        subject,
+        forum_id,
+    };
+    thread_col.insert_one(&new_thread).await?;
+
+    Ok(())
 }
 
 /// Fetches the latest `num` [`Posts`][Post] from the database in id-descending order
@@ -210,12 +260,13 @@ pub async fn create_post(thread_id: u32, content: String) -> Result<(), ApiError
         )
         .await?
         .unwrap()
-        .sequence;
+        .sequence
+        + 1;
 
     let post_col = PostDb::collection(&db);
 
     let new_post = PostDb {
-        id: id + 1,
+        id,
         content,
         created_at: bson::DateTime::now(),
         thread_id,
