@@ -21,6 +21,8 @@ pub enum ApiError {
     DbNotInContext,
     #[error("{0} with id {1} doesn't exist in the database")]
     NotFound(String, u32),
+    #[error("content cannot be empty")]
+    EmptyContent,
 }
 impl FromServerFnError for ApiError {
     fn from_server_fn_error(value: ServerFnErrorErr) -> Self {
@@ -249,8 +251,18 @@ pub async fn get_posts_from_thread(thread_id: u32) -> Result<Vec<Post>, ApiError
     Ok(posts)
 }
 
+/// Creates a post in the given [`Thread`]
+///
+/// # Errors
+///
+/// - [`ApiError::EmptyContent`] if `content` is empty
+/// - [`ApiError::NotFound`] if `thread_id` isn't in use
 #[server]
 pub async fn create_post(thread_id: u32, content: String) -> Result<(), ApiError> {
+    if content.is_empty() {
+        return Err(ApiError::EmptyContent);
+    }
+
     let db = get_db()?;
     let counter_col = Counter::collection(&db);
     let id = counter_col
@@ -259,7 +271,7 @@ pub async fn create_post(thread_id: u32, content: String) -> Result<(), ApiError
             bson::doc! {"$inc": {"sequence": 1}},
         )
         .await?
-        .unwrap()
+        .ok_or(ApiError::NotFound("thread".into(), thread_id))?
         .sequence
         + 1;
 

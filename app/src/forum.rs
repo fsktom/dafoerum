@@ -1,4 +1,5 @@
 use crate::api;
+use api::ApiError;
 
 use leptos::{logging, prelude::*};
 // use leptos_meta::Title;
@@ -115,6 +116,8 @@ pub fn ThreadOverview() -> impl IntoView {
 }
 
 /// Renders a list of posts from the given thread
+///
+/// BEWARE!: Make sure beforehand that the thread exists
 #[component]
 fn Posts(thread_id: u32) -> impl IntoView {
     // change to readsignal<u32> when implementing multiview (multiple threads at once)?
@@ -143,10 +146,53 @@ fn Posts(thread_id: u32) -> impl IntoView {
         })
     };
 
+    // server-side error handling
+    let error = move || {
+        // will be None before first dispatch
+        let Some(val) = create_post.value().get() as Option<Result<(), ApiError>> else {
+            return ().into_any();
+        };
+        // Will be Ok if no errors occured
+        let Err(e) = val else {
+            return ().into_any();
+        };
+
+        let msg = match e {
+            ApiError::EmptyContent => "Post content cannot be empty!".into(),
+            _ => format!("Error from server: {e}"),
+        };
+
+        view! { <p class="text-lg font-bold text-red-700">{msg}</p> }.into_any()
+    };
+
+    let (client_error, set_client_error) = signal("none".to_string());
+
     view! {
+      // server-side errors
+      {error}
+
+      // client-side errors / validation
+      {move || {
+        if client_error() == "none" {
+          ().into_any()
+        } else {
+          view! { <p class="text-lg font-bold text-red-700">{client_error()}</p> }.into_any()
+        }
+      }}
+
       // https://flowbite.com/docs/forms/textarea/#comment-box
       <ActionForm
         action=create_post
+        on:submit:capture=move |ev| {
+          let post = api::CreatePost::from_event(&ev);
+          let Ok(post) = post else {
+            return;
+          };
+          if post.content.is_empty() {
+            set_client_error.set("Post content cannot be empty!".to_string());
+            ev.prevent_default();
+          }
+        }
         attr:class="max-w-md w-full mb-4 border border-gray-200 rounded-lg bg-gray-50"
       >
         // I hope there's a better way to do this...
@@ -155,6 +201,11 @@ fn Posts(thread_id: u32) -> impl IntoView {
           name="content"
           rows="5"
           placeholder="Write a post..."
+          on:input:target=move |ev| {
+            if !ev.target().value().is_empty() {
+              set_client_error.set("none".to_string());
+            }
+          }
           prop:value=move || { create_post.version().with(move |_| String::new()) }
           class="py-2 px-4 w-full text-sm text-gray-900 bg-white rounded-t-lg border-0 focus:ring-0 placeholder:italic"
         ></textarea>
