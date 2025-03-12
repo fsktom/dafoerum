@@ -3,18 +3,48 @@ use api::ApiError;
 
 use leptos::{logging, prelude::*};
 // use leptos_meta::Title;
-use leptos_router::{hooks::use_params, params::Params};
+use leptos_router::{
+    hooks::{use_navigate, use_params},
+    params::Params,
+};
 
 /// Renders a list of all threads
 #[component]
 pub fn Threads() -> impl IntoView {
     let create_thread = ServerAction::<api::CreateThread>::new();
-    let threads = Resource::new(
-        move || create_thread.version().get(),
-        move |_| api::get_threads(),
-    );
+    let threads = Resource::new(move || (), move |_| api::get_threads());
 
-    let clear_inputs = move || create_thread.version().with(move |_| String::new());
+    // redirect to created thread on thread creation
+    Effect::new(move |_| {
+        let Some(result) = create_thread.value().get() else {
+            return;
+        };
+        if let Ok(thread_id) = result {
+            let navigate = use_navigate();
+            let url = format!("/thread/{thread_id}");
+            navigate(&url, Default::default());
+        }
+    });
+
+    // server-side error handling
+    let error = move || {
+        // will be None before first dispatch
+        let Some(val) = create_thread.value().get() as Option<Result<u32, ApiError>> else {
+            return ().into_any();
+        };
+        // Will be Ok if no errors occured
+        let Err(e) = val else {
+            return ().into_any();
+        };
+
+        let msg = match e {
+            ApiError::EmptyContent => "Post content cannot be empty!".into(),
+            ApiError::EmptySubject => "Subject cannot be empty!".into(),
+            _ => format!("Error from server: {e}"),
+        };
+
+        view! { <p class="text-lg font-bold text-red-700">{msg}</p> }.into_any()
+    };
 
     let thread_list_view = move || {
         Suspend::new(async move {
@@ -39,6 +69,7 @@ pub fn Threads() -> impl IntoView {
     };
 
     view! {
+      {error}
       <ActionForm
         action=create_thread
         attr:class="max-w-md w-full mb-4 border border-gray-200 rounded-lg bg-gray-50"
@@ -48,14 +79,12 @@ pub fn Threads() -> impl IntoView {
         <input
           name="subject"
           placeholder="Write a subject..."
-          prop:value=clear_inputs
           class="block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-blue-500"
         />
         <textarea
           name="post_content"
           rows="5"
           placeholder="Write a post..."
-          prop:value=clear_inputs
           class="py-2 px-4 w-full text-sm text-gray-900 bg-white rounded-t-lg border-0 focus:ring-0 placeholder:italic"
         ></textarea>
         <div class="flex justify-between items-center py-2 px-3 border-t border-gray-200">

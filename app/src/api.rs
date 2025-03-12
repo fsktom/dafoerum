@@ -23,6 +23,8 @@ pub enum ApiError {
     NotFound(String, u32),
     #[error("content cannot be empty")]
     EmptyContent,
+    #[error("subject cannot be empty")]
+    EmptySubject,
 }
 impl FromServerFnError for ApiError {
     fn from_server_fn_error(value: ServerFnErrorErr) -> Self {
@@ -168,12 +170,23 @@ pub async fn get_threads() -> Result<Vec<Thread>, ApiError> {
 }
 
 /// Tries to create a [`Thread`] within the given forum and with a [`Post`] of `post_content`
+///
+/// Will error if `subject` or `post_content` are empty
+///
+/// Returns the `thread_id` of the created [`Thread`]
 #[server]
 pub async fn create_thread(
     forum_id: u32,
     subject: String,
     post_content: String,
-) -> Result<(), ApiError> {
+) -> Result<u32, ApiError> {
+    if subject.is_empty() {
+        return Err(ApiError::EmptySubject);
+    }
+    if post_content.is_empty() {
+        return Err(ApiError::EmptyContent);
+    }
+
     let db = get_db()?;
     let counter_col = Counter::collection(&db);
     let thread_id = counter_col
@@ -213,7 +226,7 @@ pub async fn create_thread(
     };
     thread_col.insert_one(&new_thread).await?;
 
-    Ok(())
+    Ok(thread_id)
 }
 
 /// Fetches the latest `num` [`Posts`][Post] from the database in id-descending order
