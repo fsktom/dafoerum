@@ -1,5 +1,5 @@
 use crate::api;
-use api::ApiError;
+use api::{ApiError, Forum, Post, Thread};
 
 use leptos::{logging, prelude::*};
 // use leptos_meta::Title;
@@ -8,11 +8,91 @@ use leptos_router::{
     params::Params,
 };
 
-/// Renders a list of all threads
+/// Renders a list of all [`Forums`][Forum]
 #[component]
-pub fn Threads() -> impl IntoView {
+pub fn Forums() -> impl IntoView {
+    let forums: Resource<Result<Vec<Forum>, ApiError>> =
+        Resource::new(move || (), move |()| api::get_forums());
+
+    view! {
+      <Suspense fallback=move || {
+        view! { <p>"Loading forums..."</p> }
+      }>
+        <ul class="mb-2 text-lg font-semibold text-gray-900">
+          <For
+            each=move || {
+              let Some(forum_list) = forums.get() else { return vec![] };
+              forum_list.unwrap()
+            }
+            key=|forum| forum.id
+            children=move |forum| {
+              view! {
+                <li class="space-y-1 max-w-md list-disc list-inside text-gray-500">
+                  <a
+                    href=format!("/forum/{}", forum.id)
+                    class="font-medium text-blue-600 underline hover:no-underline"
+                  >
+                    {forum.name}
+                  </a>
+                </li>
+              }
+            }
+          />
+        </ul>
+      </Suspense>
+    }
+}
+
+/// Parameters for /forum/:id
+#[derive(Params, PartialEq, Clone, Copy)]
+struct ForumParams {
+    id: u32,
+}
+
+/// Renders the thread list of a [`Forum`]
+#[component]
+pub fn ForumOverview() -> impl IntoView {
+    let params = use_params::<ForumParams>();
+    let Ok(ForumParams { id }) = params.get_untracked() else {
+        return view! {
+          <h2 class="text-4xl font-bold">"Invalid id!"</h2>
+          <a href="/" class="block rounded-sm hover:text-blue-700">
+            <h3 class="text-3xl font-bold">"Go to the frontpage"</h3>
+          </a>
+        }
+        .into_any();
+    };
+
+    let n = Resource::new(move || (), move |()| api::get_forum(id));
+    let a = Suspend::new(async move {
+        let forum = match n.await {
+            Ok(forum) => forum,
+            Err(err) => {
+                logging::log!("{err:?} - {err}");
+                return view! { <h2 class="text-4xl font-bold">"Error occured! " {format!("{err:?}")}</h2> }
+                    .into_any();
+            }
+        };
+        view! {
+          <h2 class="text-4xl font-bold">{forum.name}</h2>
+          <p>"Forum id: "{forum.id}</p>
+        }
+        .into_any()
+    });
+
+    view! {
+      {a}
+      <Threads forum_id=id />
+    }
+    .into_any()
+}
+
+/// Renders a list of all [`Threads`][Thread] of a given [`Forum`]
+#[component]
+pub fn Threads(forum_id: u32) -> impl IntoView {
     let create_thread = ServerAction::<api::CreateThread>::new();
-    let threads = Resource::new(move || (), move |()| api::get_threads());
+    let threads: Resource<Result<Vec<Thread>, ApiError>> =
+        Resource::new(move || (), move |()| api::get_threads(forum_id));
 
     // redirect to created thread on thread creation
     Effect::new(move |_| {
@@ -75,7 +155,7 @@ pub fn Threads() -> impl IntoView {
         attr:class="max-w-md w-full mb-4 border border-gray-200 rounded-lg bg-gray-50"
       >
         // I hope there's a better way to do this...
-        <input class="hidden" name="forum_id" value="1" />
+        <input class="hidden" name="forum_id" value=forum_id />
         <input
           name="subject"
           placeholder="Write a subject..."
@@ -105,7 +185,7 @@ struct ThreadParams {
     id: u32,
 }
 
-/// Renders the post list of a thread
+/// Renders the post list of a [`Thread`]
 #[component]
 pub fn ThreadOverview() -> impl IntoView {
     let params = use_params::<ThreadParams>();
@@ -144,7 +224,7 @@ pub fn ThreadOverview() -> impl IntoView {
     .into_any()
 }
 
-/// Renders a list of posts from the given thread
+/// Renders a list of [`Posts`][Post] from the given [`Thread`]
 #[component]
 fn Posts(thread_id: u32) -> impl IntoView {
     // change to readsignal<u32> when implementing multiview (multiple threads at once)?
@@ -248,8 +328,9 @@ fn Posts(thread_id: u32) -> impl IntoView {
     }
 }
 
+/// Box containing a single [`Post`]
 #[component]
-pub fn PostItem(post: api::Post) -> impl IntoView {
+pub fn PostItem(post: Post) -> impl IntoView {
     view! {
       <article class="p-6 w-full max-w-md bg-white rounded-lg border border-gray-200 shadow-sm0">
         <div class="flex justify-between">

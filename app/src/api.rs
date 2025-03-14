@@ -110,6 +110,21 @@ impl CollectionName for Counter {
     }
 }
 
+/// Represents a top-level forum: contains multiple [`Threads`][Thread]
+/// TBD: can contain [`Subforum`][Subforum]
+///
+/// [`Threads`][Thread] are saved in a separate db collection and refer to their parent forum
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Forum {
+    pub id: u32,
+    pub name: String,
+}
+impl CollectionName for Forum {
+    fn collection_name() -> &'static str {
+        "forums"
+    }
+}
+
 /// Represents a thread: it's part of a [`Forum`] and contains multiple [`Posts`][Post]
 ///
 /// [`Posts`][Post] are saved in a separate db collection and refer to their parent thread
@@ -158,6 +173,30 @@ impl CollectionName for Post {
     }
 }
 
+/// Looks up if the given `forum_id` exists in the database and returns the [`Forum`] if so
+#[server]
+pub async fn get_forum(forum_id: u32) -> Result<Forum, ApiError> {
+    let db = helper::get_db()?;
+    helper::get_forum(forum_id, db).await
+}
+
+/// Queries all top-level [`Forums`][Forum] from the db
+#[server]
+pub async fn get_forums() -> Result<Vec<Forum>, ApiError> {
+    let db = helper::get_db()?;
+    let forum_col = Forum::collection(&db);
+    let mut forums = vec![];
+    let mut forums_cursor = forum_col
+        .find(bson::doc! {})
+        // descending
+        .sort(bson::doc! {"id": -1})
+        .await?;
+    while forums_cursor.advance().await? {
+        forums.push(forums_cursor.deserialize_current()?);
+    }
+    Ok(forums)
+}
+
 /// Looks up if the given `thread_id` exists in the database and returns the [`Thread`] if so
 #[server]
 pub async fn get_thread(thread_id: u32) -> Result<Thread, ApiError> {
@@ -165,14 +204,14 @@ pub async fn get_thread(thread_id: u32) -> Result<Thread, ApiError> {
     helper::get_thread(thread_id, db).await
 }
 
-/// Fetches all [`Threads`][Thread] from the database in id-descending order
+/// Fetches all [`Threads`][Thread] of a given [`Forum`] from the database in id-descending order
 #[server]
-pub async fn get_threads() -> Result<Vec<Thread>, ApiError> {
+pub async fn get_threads(forum_id: u32) -> Result<Vec<Thread>, ApiError> {
     let db = helper::get_db()?;
     let thread_col = Thread::collection(&db);
     let mut threads = vec![];
     let mut threads_cursor = thread_col
-        .find(bson::doc! {})
+        .find(bson::doc! {"forum_id": forum_id})
         // descending
         .sort(bson::doc! {"id": -1})
         .await?;

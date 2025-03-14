@@ -3,7 +3,7 @@
 //! Separating it because I want [`super`] to only contain functions that
 //! are also API endpoints (`#[server]`)
 
-use super::{ApiError, Collection, Counter, Database, GetCollection, Thread, bson};
+use super::{ApiError, Collection, Counter, Database, Forum, GetCollection, Thread, bson};
 use leptos::prelude::*;
 
 /// Gives access to the [`Database`]
@@ -52,8 +52,22 @@ pub async fn get_and_increment_id_of(
 /// * [`ApiError::NotFound`] if the `thread_id` is not in the db
 /// * [`ApiError::Db`] if the db connection fails in any way
 pub async fn get_thread(thread_id: u32, db: Database) -> Result<Thread, ApiError> {
-    let threads_col = Thread::collection(&db);
-    let thread = threads_col.find_one(bson::doc! {"id": thread_id}).await?;
+    let thread_col = Thread::collection(&db);
+    let thread = thread_col.find_one(bson::doc! {"id": thread_id}).await?;
 
     thread.ok_or(ApiError::NotFound("thread".into(), thread_id))
+}
+
+/// Queries database to check if a [`Forum`] with the given `forum_id` exists
+/// and returns it.
+///
+/// # Errors
+///
+/// * [`ApiError::NotFound`] if the `forum_id` is not in the db
+/// * [`ApiError::Db`] if the db connection fails in any way
+pub async fn get_forum(forum_id: u32, db: Database) -> Result<Forum, ApiError> {
+    let forum_col = Forum::collection(&db);
+    let forum = forum_col.find_one(bson::doc! {"id": forum_id}).await?;
+
+    forum.ok_or(ApiError::NotFound("forum".into(), forum_id))
 }

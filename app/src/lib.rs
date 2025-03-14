@@ -7,7 +7,10 @@
 #![deny(unsafe_code, reason = "unsafe bad")]
 #![warn(clippy::pedantic)]
 #![warn(clippy::clone_on_ref_ptr, reason = "be explicit on cheap cloning")]
-#![allow(clippy::must_use_candidate, reason = "works badly with #[component]")]
+#![allow(
+    clippy::must_use_candidate,
+    reason = "works badly with rust-analyzer and #[component]"
+)]
 
 pub mod api;
 mod forum;
@@ -58,6 +61,7 @@ pub fn App() -> impl IntoView {
           <Routes fallback=|| "Page not found.".into_view()>
             <Route path=StaticSegment("") view=HomePage />
             <Route path=StaticSegment("/latest") view=Latest />
+            <Route path=path!("/forum/:id") view=forum::ForumOverview />
             <Route path=path!("/thread/:id") view=forum::ThreadOverview />
           </Routes>
         </main>
@@ -117,8 +121,8 @@ fn HomePage() -> impl IntoView {
       <h1 class="mb-4 text-4xl font-extrabold tracking-tight leading-none text-gray-900 md:text-5xl lg:text-6xl">
         "Welcome to Dafoerum!"
       </h1>
-      <h2 class="text-4xl font-bold">"Threads on the forum:"</h2>
-      <forum::Threads />
+      <h2 class="text-4xl font-bold">"Forums:"</h2>
+      <forum::Forums />
     }
 }
 
