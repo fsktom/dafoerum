@@ -1,4 +1,15 @@
-mod api;
+//! Code shared across the frontend and backend of dafoerum
+//!
+//! Server-only code that has to be used by the front end e.g. using [`ServerActions`][ServerAction]
+//! is gated under the `ssr` feature using `#[cfg(feature = "ssr")]`
+//! or implicitly with the `#[server]` macro
+
+#![deny(unsafe_code, reason = "unsafe bad")]
+#![warn(clippy::pedantic)]
+#![warn(clippy::clone_on_ref_ptr, reason = "be explicit on cheap cloning")]
+#![allow(clippy::must_use_candidate, reason = "works badly with #[component]")]
+
+pub mod api;
 mod forum;
 
 use leptos::prelude::*;
@@ -115,7 +126,10 @@ fn HomePage() -> impl IntoView {
 #[component]
 fn Latest() -> impl IntoView {
     const NUM_OF_POSTS_TO_FETCH: i64 = 10;
-    let posts = Resource::new(move || (), |_| api::get_latest_posts(NUM_OF_POSTS_TO_FETCH));
+    let posts = Resource::new(
+        move || (),
+        |()| api::get_latest_posts(NUM_OF_POSTS_TO_FETCH),
+    );
     let post_list_view = move || {
         Suspend::new(async move {
             posts

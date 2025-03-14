@@ -12,7 +12,7 @@ use leptos_router::{
 #[component]
 pub fn Threads() -> impl IntoView {
     let create_thread = ServerAction::<api::CreateThread>::new();
-    let threads = Resource::new(move || (), move |_| api::get_threads());
+    let threads = Resource::new(move || (), move |()| api::get_threads());
 
     // redirect to created thread on thread creation
     Effect::new(move |_| {
@@ -22,7 +22,7 @@ pub fn Threads() -> impl IntoView {
         if let Ok(thread_id) = result {
             let navigate = use_navigate();
             let url = format!("/thread/{thread_id}");
-            navigate(&url, Default::default());
+            navigate(&url, leptos_router::NavigateOptions::default());
         }
     });
 
@@ -119,7 +119,7 @@ pub fn ThreadOverview() -> impl IntoView {
         .into_any();
     };
 
-    let n = Resource::new(move || (), move |_| api::get_thread(id));
+    let n = Resource::new(move || (), move |()| api::get_thread(id));
     let a = Suspend::new(async move {
         let thread = match n.await {
             Ok(thread) => thread,

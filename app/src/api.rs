@@ -3,7 +3,7 @@
 //! Helper functions are in the [`helper`] submodule
 
 #[cfg(feature = "ssr")]
-mod helper;
+pub mod helper;
 
 #[cfg(feature = "ssr")]
 use mongodb::{Collection, Database, bson};
@@ -53,10 +53,10 @@ impl FromServerFnError for ApiError {
 #[cfg(feature = "ssr")]
 impl From<mongodb::error::Error> for ApiError {
     fn from(value: mongodb::error::Error) -> Self {
-        use mongodb::error::ErrorKind::*;
+        use mongodb::error::ErrorKind as E;
         let msg = value.to_string();
         match *value.kind {
-            BsonSerialization(_) | BsonDeserialization(_) => ApiError::DbDeSer(msg),
+            E::BsonSerialization(_) | E::BsonDeserialization(_) => ApiError::DbDeSer(msg),
             _ => ApiError::Db(msg),
         }
     }
@@ -70,6 +70,10 @@ trait CollectionName: std::marker::Send + std::marker::Sync + std::marker::Sized
 }
 
 /// Trait for easy access to the type's [`Collection`] in the [`Database`]
+///
+/// You shouldn't have to implement this directly. Instead, implement [`CollectionName`]
+/// with the name of the collection holding this type in the db,
+/// and this trait will be implemented automatically.
 #[cfg(feature = "ssr")]
 trait GetCollection: CollectionName {
     /// Returns the type's [`Collection`] in the [`Database`]
@@ -90,14 +94,14 @@ where
 /// I didn't want to use UUID for everything, because I like the idea
 /// of an ever-increasing post, thread, forum, user id :)
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct Counter {
+pub struct Counter {
     /// Name of the thing to sequence, e.g. "post", "thread", "user" etc.
     ///
     /// This *must* exist in the db collection, otherwise dependent functions
     /// like [`helper::get_and_increment_id_of`] will panic
     category: String,
 
-    /// Current highest in-use id
+    /// Current highest id
     sequence: u32,
 }
 impl CollectionName for Counter {
@@ -135,6 +139,11 @@ pub struct Post {
 }
 impl Post {
     /// 2025-03-07T02:12:38+01:00
+    #[allow(
+        clippy::missing_panics_doc,
+        reason = "unwrapping after a static str in"
+    )]
+    #[must_use]
     pub fn date_in_berlin(&self) -> String {
         self.created_at
             .in_tz("Europe/Berlin")
@@ -143,7 +152,6 @@ impl Post {
             .to_string()
     }
 }
-#[cfg(feature = "ssr")]
 impl CollectionName for Post {
     fn collection_name() -> &'static str {
         "posts"
@@ -291,15 +299,22 @@ pub mod jiff_timestamp_as_bson_datetime {
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
     /// Deserializes a [`jiff::Timestamp`] from a [`bson::DateTime`].
+    #[allow(clippy::missing_errors_doc)]
     pub fn deserialize<'de, D>(deserializer: D) -> Result<jiff::Timestamp, D::Error>
     where
         D: Deserializer<'de>,
     {
         let datetime = bson::DateTime::deserialize(deserializer)?;
-        Ok(jiff::Timestamp::from_millisecond(datetime.timestamp_millis()).expect("bad mongo"))
+        let Ok(timestamp) = jiff::Timestamp::from_millisecond(datetime.timestamp_millis()) else {
+            unreachable!(
+                "a bson DateTime in ms shouldn't be out of range for jiff timestamp creation"
+            )
+        };
+        Ok(timestamp)
     }
 
     /// Serializes a [`jiff::Timestamp`] as a [`bson::DateTime`].
+    #[allow(clippy::missing_errors_doc)]
     pub fn serialize<S: Serializer>(
         val: &jiff::Timestamp,
         serializer: S,
