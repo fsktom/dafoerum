@@ -1,6 +1,6 @@
 //! Each function here should be `#[server]` function
 //!
-//! Helper functions are in the [`helper`]` submodule
+//! Helper functions are in the [`helper`] submodule
 
 #[cfg(feature = "ssr")]
 mod helper;
@@ -18,18 +18,30 @@ use thiserror::Error;
 /// Error type used for backend-frontend interaction
 #[derive(Debug, Clone, Error, Deserialize, Serialize)]
 pub enum ApiError {
+    /// A wrapper around [`ServerFnErrorErr`], basically whenever something
+    /// happens between the request and response
     #[error("server fn error: {0}")]
     ServerFn(ServerFnErrorErr),
+
+    /// Used when a generic mongodb error happens
     #[error("opaque mongodb error: {0}")]
     Db(String),
+    /// Used for de/serializations errors during database communication
     #[error("(de)serialization error in db: {0}")]
     DbDeSer(String),
+    /// Used when, for some reason (shouldn't ever happen...), the
+    /// database is not in leptos context (see [`provide_context`])
     #[error("database not in leptos context")]
     DbNotInContext,
+
+    /// Used when the given item doesn't exist in the databse
     #[error("{0} with id {1} doesn't exist in the database")]
     NotFound(String, u32),
+
+    /// Used when the content of a post is empty
     #[error("content cannot be empty")]
     EmptyContent,
+    /// Used when the subject of a thread is empty
     #[error("subject cannot be empty")]
     EmptySubject,
 }
@@ -73,9 +85,19 @@ where
     }
 }
 
+/// Used for creating new things that require an incrementing id
+///
+/// I didn't want to use UUID for everything, because I like the idea
+/// of an ever-increasing post, thread, forum, user id :)
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct Counter {
+    /// Name of the thing to sequence, e.g. "post", "thread", "user" etc.
+    ///
+    /// This *must* exist in the db collection, otherwise dependent functions
+    /// like [`helper::get_and_increment_id_of`] will panic
     category: String,
+
+    /// Current highest in-use id
     sequence: u32,
 }
 impl CollectionName for Counter {
@@ -84,13 +106,15 @@ impl CollectionName for Counter {
     }
 }
 
-/// Represents a thread: it's part of a forum (tbd) and contains multiple posts
+/// Represents a thread: it's part of a [`Forum`] and contains multiple [`Posts`][Post]
+///
+/// [`Posts`][Post] are saved in a separate db collection and refer to their parent thread
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Thread {
     pub id: u32,
     pub origin_post_id: u32,
-    pub subject: String,
     pub forum_id: u32,
+    pub subject: String,
 }
 impl CollectionName for Thread {
     fn collection_name() -> &'static str {
@@ -98,11 +122,13 @@ impl CollectionName for Thread {
     }
 }
 
+/// Represents a post: it's part of a thread and contains a message
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Post {
     pub id: u32,
     pub content: String,
 
+    /// Will be de/serialized as [`bson::DateTime`] for communication with the db
     #[serde(with = "jiff_timestamp_as_bson_datetime")]
     pub created_at: jiff::Timestamp,
     pub thread_id: u32,
@@ -261,7 +287,6 @@ pub async fn create_post(thread_id: u32, content: String) -> Result<(), ApiError
 }
 
 pub mod jiff_timestamp_as_bson_datetime {
-    use bson::DateTime;
     // https://docs.rs/bson/latest/bson/serde_helpers/chrono_datetime_as_bson_datetime
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -279,7 +304,7 @@ pub mod jiff_timestamp_as_bson_datetime {
         val: &jiff::Timestamp,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        let datetime = DateTime::from_millis(val.as_millisecond());
+        let datetime = bson::DateTime::from_millis(val.as_millisecond());
         datetime.serialize(serializer)
     }
 }
