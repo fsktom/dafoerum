@@ -7,6 +7,12 @@ use super::{ApiError, Collection, Counter, Database, GetCollection, Thread, bson
 use leptos::prelude::*;
 
 /// Gives access to the [`Database`]
+///
+/// # Errors
+///
+/// * [`ApiError::DbNotInContext`] if the db hasn't been saved via [`provide_context`] before
+///   (for future: maybe panic instead since it's irrecoverrible?
+///   maybe at the top level in server somehow...)
 pub fn get_db() -> Result<Database, ApiError> {
     use_context::<Database>().ok_or(ApiError::DbNotInContext)
 }
@@ -14,6 +20,14 @@ pub fn get_db() -> Result<Database, ApiError> {
 /// Looks up the current sequence of a post/thread/..., increments it and returns the incremented value
 ///
 /// Required when creating new such element
+///
+/// # Panics
+///
+/// Will panic if the given `category` doesn't exist in the [`Collection<Counter>`] of the database
+///
+/// # Errors
+///
+/// * [`ApiError::Db`] if the db connection fails in any way
 pub async fn get_and_increment_id_of(
     category: &'static str,
     counter_col: Collection<Counter>,
@@ -30,7 +44,13 @@ pub async fn get_and_increment_id_of(
     Ok(current_id + 1)
 }
 
-/// Like [`get_thread`] but not as API endpoint
+/// Queries database to check if a [`Thread`] with the given `thread_id` exists
+/// and returns it.
+///
+/// # Errors
+///
+/// * [`ApiError::NotFound`] if the `thread_id` is not in the db
+/// * [`ApiError::Db`] if the db connection fails in any way
 pub async fn get_thread(thread_id: u32, db: Database) -> Result<Thread, ApiError> {
     let threads_col = Thread::collection(&db);
     let thread = threads_col.find_one(bson::doc! {"id": thread_id}).await?;

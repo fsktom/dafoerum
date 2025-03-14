@@ -1,6 +1,6 @@
 //! Each function here should be `#[server]` function
 //!
-//! Helper functions are in the helper submodule
+//! Helper functions are in the [`helper`]` submodule
 
 #[cfg(feature = "ssr")]
 mod helper;
