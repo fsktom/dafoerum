@@ -145,8 +145,6 @@ pub fn ThreadOverview() -> impl IntoView {
 }
 
 /// Renders a list of posts from the given thread
-///
-/// BEWARE!: Make sure beforehand that the thread exists
 #[component]
 fn Posts(thread_id: u32) -> impl IntoView {
     // change to readsignal<u32> when implementing multiview (multiple threads at once)?

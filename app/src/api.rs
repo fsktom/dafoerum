@@ -1,3 +1,10 @@
+//! Each function here should be `#[server]` function
+//!
+//! Helper functions are in the helper submodule
+
+#[cfg(feature = "ssr")]
+mod helper;
+
 #[cfg(feature = "ssr")]
 use mongodb::{Collection, Database, bson};
 
@@ -136,26 +143,17 @@ impl CollectionName for PostDb {
     }
 }
 
-/// Gives access to the [`Database`]
-#[cfg(feature = "ssr")]
-fn get_db() -> Result<Database, ApiError> {
-    use_context::<Database>().ok_or(ApiError::DbNotInContext)
-}
-
 /// Looks up if the given `thread_id` exists in the database and returns the [`Thread`] if so
 #[server]
 pub async fn get_thread(thread_id: u32) -> Result<Thread, ApiError> {
-    let db = get_db()?;
-    let threads_col = Thread::collection(&db);
-    let thread = threads_col.find_one(bson::doc! {"id": thread_id}).await?;
-
-    thread.ok_or(ApiError::NotFound("thread".into(), thread_id))
+    let db = helper::get_db()?;
+    helper::get_thread(thread_id, db).await
 }
 
 /// Fetches all [`Threads`][Thread] from the database in id-descending order
 #[server]
 pub async fn get_threads() -> Result<Vec<Thread>, ApiError> {
-    let db = get_db()?;
+    let db = helper::get_db()?;
     let thread_col = Thread::collection(&db);
     let mut threads = vec![];
     let mut threads_cursor = thread_col
@@ -187,28 +185,12 @@ pub async fn create_thread(
         return Err(ApiError::EmptyContent);
     }
 
-    let db = get_db()?;
+    let db = helper::get_db()?;
     let counter_col = Counter::collection(&db);
-    let thread_id = counter_col
-        .find_one_and_update(
-            bson::doc! {"category": "thread"},
-            bson::doc! {"$inc": {"sequence": 1}},
-        )
-        .await?
-        .unwrap()
-        .sequence
-        + 1;
+    let thread_id = helper::get_and_increment_id_of("thread", counter_col.clone()).await?;
 
     let post_col = PostDb::collection(&db);
-    let post_id = counter_col
-        .find_one_and_update(
-            bson::doc! {"category": "post"},
-            bson::doc! {"$inc": {"sequence": 1}},
-        )
-        .await?
-        .unwrap()
-        .sequence
-        + 1;
+    let post_id = helper::get_and_increment_id_of("post", counter_col).await?;
     let new_post = PostDb {
         id: post_id,
         content: post_content,
@@ -232,7 +214,7 @@ pub async fn create_thread(
 /// Fetches the latest `num` [`Posts`][Post] from the database in id-descending order
 #[server]
 pub async fn get_latest_posts(num: i64) -> Result<Vec<Post>, ApiError> {
-    let db = get_db()?;
+    let db = helper::get_db()?;
     let post_col = PostDb::collection(&db);
     let mut posts = vec![];
     let mut post_cursor = post_col
@@ -250,7 +232,7 @@ pub async fn get_latest_posts(num: i64) -> Result<Vec<Post>, ApiError> {
 /// Fetches a certain thread's [`Posts`][Post] from the databse in id-ascending order
 #[server]
 pub async fn get_posts_from_thread(thread_id: u32) -> Result<Vec<Post>, ApiError> {
-    let db = get_db()?;
+    let db = helper::get_db()?;
     let post_col = PostDb::collection(&db);
     let mut posts = vec![];
     let mut post_cursor = post_col
@@ -276,17 +258,12 @@ pub async fn create_post(thread_id: u32, content: String) -> Result<(), ApiError
         return Err(ApiError::EmptyContent);
     }
 
-    let db = get_db()?;
+    let db = helper::get_db()?;
+
+    let _ = helper::get_thread(thread_id, db.clone()).await?;
+
     let counter_col = Counter::collection(&db);
-    let id = counter_col
-        .find_one_and_update(
-            bson::doc! {"category": "post"},
-            bson::doc! {"$inc": {"sequence": 1}},
-        )
-        .await?
-        .ok_or(ApiError::NotFound("thread".into(), thread_id))?
-        .sequence
-        + 1;
+    let id = helper::get_and_increment_id_of("post", counter_col).await?;
 
     let post_col = PostDb::collection(&db);
 
