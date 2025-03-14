@@ -102,6 +102,8 @@ impl CollectionName for Thread {
 pub struct Post {
     pub id: u32,
     pub content: String,
+
+    #[serde(with = "jiff_timestamp_as_bson_datetime")]
     pub created_at: jiff::Timestamp,
     pub thread_id: u32,
 }
@@ -116,28 +118,7 @@ impl Post {
     }
 }
 #[cfg(feature = "ssr")]
-impl From<PostDb> for Post {
-    fn from(value: PostDb) -> Self {
-        Post {
-            id: value.id,
-            content: value.content,
-            created_at: jiff::Timestamp::from_millisecond(value.created_at.timestamp_millis())
-                .expect("bad mongo"),
-            thread_id: value.thread_id,
-        }
-    }
-}
-
-#[cfg(feature = "ssr")]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct PostDb {
-    pub id: u32,
-    pub content: String,
-    pub created_at: bson::DateTime,
-    pub thread_id: u32,
-}
-#[cfg(feature = "ssr")]
-impl CollectionName for PostDb {
+impl CollectionName for Post {
     fn collection_name() -> &'static str {
         "posts"
     }
@@ -189,12 +170,12 @@ pub async fn create_thread(
     let counter_col = Counter::collection(&db);
     let thread_id = helper::get_and_increment_id_of("thread", counter_col.clone()).await?;
 
-    let post_col = PostDb::collection(&db);
+    let post_col = Post::collection(&db);
     let post_id = helper::get_and_increment_id_of("post", counter_col).await?;
-    let new_post = PostDb {
+    let new_post = Post {
         id: post_id,
         content: post_content,
-        created_at: bson::DateTime::now(),
+        created_at: jiff::Timestamp::now(),
         thread_id,
     };
     post_col.insert_one(&new_post).await?;
@@ -215,7 +196,7 @@ pub async fn create_thread(
 #[server]
 pub async fn get_latest_posts(num: i64) -> Result<Vec<Post>, ApiError> {
     let db = helper::get_db()?;
-    let post_col = PostDb::collection(&db);
+    let post_col = Post::collection(&db);
     let mut posts = vec![];
     let mut post_cursor = post_col
         .find(bson::doc! {})
@@ -224,7 +205,7 @@ pub async fn get_latest_posts(num: i64) -> Result<Vec<Post>, ApiError> {
         .limit(num)
         .await?;
     while post_cursor.advance().await? {
-        posts.push(Post::from(post_cursor.deserialize_current()?));
+        posts.push(post_cursor.deserialize_current()?);
     }
     Ok(posts)
 }
@@ -233,7 +214,7 @@ pub async fn get_latest_posts(num: i64) -> Result<Vec<Post>, ApiError> {
 #[server]
 pub async fn get_posts_from_thread(thread_id: u32) -> Result<Vec<Post>, ApiError> {
     let db = helper::get_db()?;
-    let post_col = PostDb::collection(&db);
+    let post_col = Post::collection(&db);
     let mut posts = vec![];
     let mut post_cursor = post_col
         .find(bson::doc! {"thread_id": thread_id})
@@ -241,7 +222,7 @@ pub async fn get_posts_from_thread(thread_id: u32) -> Result<Vec<Post>, ApiError
         .sort(bson::doc! {"id": 1})
         .await?;
     while post_cursor.advance().await? {
-        posts.push(Post::from(post_cursor.deserialize_current()?));
+        posts.push(post_cursor.deserialize_current()?);
     }
     Ok(posts)
 }
@@ -265,16 +246,40 @@ pub async fn create_post(thread_id: u32, content: String) -> Result<(), ApiError
     let counter_col = Counter::collection(&db);
     let id = helper::get_and_increment_id_of("post", counter_col).await?;
 
-    let post_col = PostDb::collection(&db);
+    let post_col = Post::collection(&db);
 
-    let new_post = PostDb {
+    let new_post = Post {
         id,
         content,
-        created_at: bson::DateTime::now(),
+        created_at: jiff::Timestamp::now(),
         thread_id,
     };
 
     post_col.insert_one(&new_post).await?;
 
     Ok(())
+}
+
+pub mod jiff_timestamp_as_bson_datetime {
+    use bson::DateTime;
+    // https://docs.rs/bson/latest/bson/serde_helpers/chrono_datetime_as_bson_datetime
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    /// Deserializes a [`jiff::Timestamp`] from a [`bson::DateTime`].
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<jiff::Timestamp, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let datetime = bson::DateTime::deserialize(deserializer)?;
+        Ok(jiff::Timestamp::from_millisecond(datetime.timestamp_millis()).expect("bad mongo"))
+    }
+
+    /// Serializes a [`jiff::Timestamp`] as a [`bson::DateTime`].
+    pub fn serialize<S: Serializer>(
+        val: &jiff::Timestamp,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        let datetime = DateTime::from_millis(val.as_millisecond());
+        datetime.serialize(serializer)
+    }
 }

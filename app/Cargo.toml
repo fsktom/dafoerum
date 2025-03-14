@@ -14,13 +14,14 @@ leptos_axum = { workspace = true, optional = true }
 http.workspace = true
 cfg-if.workspace = true
 thiserror.workspace = true
-jiff = { workspace = true, features = ["js"] }
+jiff.workspace = true
 serde.workspace = true
+bson.workspace = true
 mongodb = { workspace = true, optional = true }
 
 [features]
 default = []
-hydrate = ["leptos/hydrate"]
+hydrate = ["leptos/hydrate", "jiff/js"]
 ssr = [
     "leptos/ssr",
     "leptos_meta/ssr",

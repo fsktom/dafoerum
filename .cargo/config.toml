@@ -1,0 +1,4 @@
+[target.wasm32-unknown-unknown]
+# https://doc.rust-lang.org/cargo/reference/config.html
+# https://github.com/mongodb/bson-rust/pull/521
+rustflags = ["--cfg", "getrandom_backend=\"wasm_js\""]
