@@ -18,39 +18,34 @@ pub fn Forums() -> impl IntoView {
       <Suspense fallback=move || {
         view! { <p>"Loading forums..."</p> }
       }>
-
         <For
           each=move || {
             let Some(categories_list) = categories.get() else { return vec![] };
             categories_list.unwrap()
           }
           key=|category| category.forums.len()
-          children=move |category| {
-            view! {
-              <h2>{category.name}</h2>
-
-              <ul class="mb-2 text-lg font-semibold text-gray-900">
-                {category
-                  .forums
-                  .into_iter()
-                  .map(|forum| {
-                    view! {
-                      <li class="space-y-1 max-w-md list-disc list-inside text-gray-500">
-                        <a
-                          href=format!("/forum/{}", forum.id)
-                          class="font-medium text-blue-600 underline hover:no-underline"
-                        >
-                          {forum.name}
-                        </a>
-                      </li>
-                    }
-                  })
-                  .collect_view()}
-              </ul>
-            }
-          }
-        />
-
+          let(category)
+        >
+          <h2 class="text-2xl font-bold">{category.name.clone()}</h2>
+          <ul class="mb-2 text-lg font-semibold text-gray-900">
+            {category
+              .forums
+              .into_iter()
+              .map(|forum| {
+                view! {
+                  <li class="space-y-1 max-w-md list-disc list-inside text-gray-500">
+                    <a
+                      href=format!("/forum/{}", forum.id)
+                      class="font-medium text-blue-600 underline hover:no-underline"
+                    >
+                      {forum.name}
+                    </a>
+                  </li>
+                }
+              })
+              .collect_view()}
+          </ul>
+        </For>
       </Suspense>
     }
 }
@@ -77,7 +72,7 @@ pub fn ForumOverview() -> impl IntoView {
 
     let n = Resource::new(move || (), move |()| api::get_forum(id));
     let a = Suspend::new(async move {
-        let forum = match n.await {
+        let (forum, category_name) = match n.await {
             Ok(forum) => forum,
             Err(err) => {
                 logging::log!("{err:?} - {err}");
@@ -86,6 +81,20 @@ pub fn ForumOverview() -> impl IntoView {
             }
         };
         view! {
+          <p>
+            <a href="/" class="font-medium text-blue-600 underline hover:no-underline">
+              "Forum"
+            </a>
+            " -> "
+            {category_name.to_string()}
+            " -> "
+            <a
+              href=format!("/forum/{}", forum.id)
+              class="font-medium text-blue-600 underline hover:no-underline"
+            >
+              {forum.name.to_string()}
+            </a>
+          </p>
           <h2 class="text-4xl font-bold">{forum.name}</h2>
           <p>"Forum id: "{forum.id}</p>
         }
@@ -221,7 +230,32 @@ pub fn ThreadOverview() -> impl IntoView {
                     .into_any();
             }
         };
+        let (forum, category_name) =
+            Resource::new(move || (), move |()| api::get_forum(thread.forum_id))
+                .await
+                .unwrap();
         view! {
+          <p>
+            <a href="/" class="font-medium text-blue-600 underline hover:no-underline">
+              "Forum"
+            </a>
+            " -> "
+            {category_name.to_string()}
+            " -> "
+            <a
+              href=format!("/forum/{}", forum.id)
+              class="font-medium text-blue-600 underline hover:no-underline"
+            >
+              {forum.name.to_string()}
+            </a>
+            " -> "
+            <a
+              href=format!("/thread/{}", thread.id)
+              class="font-medium text-blue-600 underline hover:no-underline"
+            >
+              {thread.subject.to_string()}
+            </a>
+          </p>
           <h2 class="text-4xl font-bold">{thread.subject}</h2>
           <p>"Thread id: "{thread.id}</p>
           <p>"Origin post id: "{thread.origin_post_id}</p>

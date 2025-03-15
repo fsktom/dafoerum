@@ -61,7 +61,7 @@ pub async fn get_thread(thread_id: u32, db: Database) -> Result<Thread, ApiError
 }
 
 /// Queries database to check if a [`Forum`] with the given `forum_id` exists
-/// and returns it.
+/// and returns it with the name of its [`Category`]
 ///
 /// # Errors
 ///
@@ -71,7 +71,7 @@ pub async fn get_thread(thread_id: u32, db: Database) -> Result<Thread, ApiError
     clippy::missing_panics_doc,
     reason = "made sure otherwise it's ok to unwrap"
 )]
-pub async fn get_forum(forum_id: u32, db: Database) -> Result<Forum, ApiError> {
+pub async fn get_forum(forum_id: u32, db: Database) -> Result<(Forum, String), ApiError> {
     let category_col = Category::collection(&db);
     let category = category_col
         .find_one(bson::doc! {"forums.id": forum_id})
@@ -90,5 +90,5 @@ pub async fn get_forum(forum_id: u32, db: Database) -> Result<Forum, ApiError> {
         .find(|f| f.id == forum_id)
         .expect("already checked before for existence");
 
-    Ok(forum)
+    Ok((forum, category.name))
 }

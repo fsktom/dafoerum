@@ -198,9 +198,10 @@ pub async fn get_categories() -> Result<Vec<Category>, ApiError> {
     Ok(categories)
 }
 
-/// Looks up if the given `forum_id` exists in the database and returns the [`Forum`] if so
+/// Looks up if the given `forum_id` exists in the database and returns the [`Forum`]
+/// with the name of its [`Category`] if so
 #[server]
-pub async fn get_forum(forum_id: u32) -> Result<Forum, ApiError> {
+pub async fn get_forum(forum_id: u32) -> Result<(Forum, String), ApiError> {
     let db = helper::get_db()?;
     helper::get_forum(forum_id, db).await
 }
