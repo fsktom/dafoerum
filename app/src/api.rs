@@ -110,6 +110,19 @@ impl CollectionName for Counter {
     }
 }
 
+/// Represents a category: contains multiple top-level [`Forums`][Forum]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Category {
+    pub name: String,
+    pub order: u32,
+    pub forums: Vec<Forum>,
+}
+impl CollectionName for Category {
+    fn collection_name() -> &'static str {
+        "categories"
+    }
+}
+
 /// Represents a top-level forum: contains multiple [`Threads`][Thread]
 /// TBD: can contain [`Subforum`][Subforum]
 ///
@@ -118,11 +131,6 @@ impl CollectionName for Counter {
 pub struct Forum {
     pub id: u32,
     pub name: String,
-}
-impl CollectionName for Forum {
-    fn collection_name() -> &'static str {
-        "forums"
-    }
 }
 
 /// Represents a thread: it's part of a [`Forum`] and contains multiple [`Posts`][Post]
@@ -173,28 +181,28 @@ impl CollectionName for Post {
     }
 }
 
+/// Queries all [`Categories`][Category] contining top-level [`Forums`][Forum] from the db
+#[server]
+pub async fn get_categories() -> Result<Vec<Category>, ApiError> {
+    let db = helper::get_db()?;
+    let category_col = Category::collection(&db);
+    let mut categories = vec![];
+    let mut categories_cursor = category_col
+        .find(bson::doc! {})
+        // ascending
+        .sort(bson::doc! {"order": 1})
+        .await?;
+    while categories_cursor.advance().await? {
+        categories.push(categories_cursor.deserialize_current()?);
+    }
+    Ok(categories)
+}
+
 /// Looks up if the given `forum_id` exists in the database and returns the [`Forum`] if so
 #[server]
 pub async fn get_forum(forum_id: u32) -> Result<Forum, ApiError> {
     let db = helper::get_db()?;
     helper::get_forum(forum_id, db).await
-}
-
-/// Queries all top-level [`Forums`][Forum] from the db
-#[server]
-pub async fn get_forums() -> Result<Vec<Forum>, ApiError> {
-    let db = helper::get_db()?;
-    let forum_col = Forum::collection(&db);
-    let mut forums = vec![];
-    let mut forums_cursor = forum_col
-        .find(bson::doc! {})
-        // descending
-        .sort(bson::doc! {"id": -1})
-        .await?;
-    while forums_cursor.advance().await? {
-        forums.push(forums_cursor.deserialize_current()?);
-    }
-    Ok(forums)
 }
 
 /// Looks up if the given `thread_id` exists in the database and returns the [`Thread`] if so

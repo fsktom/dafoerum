@@ -1,5 +1,5 @@
 use crate::api;
-use api::{ApiError, Forum, Post, Thread};
+use api::{ApiError, Category, Post, Thread};
 
 use leptos::{logging, prelude::*};
 // use leptos_meta::Title;
@@ -11,34 +11,46 @@ use leptos_router::{
 /// Renders a list of all [`Forums`][Forum]
 #[component]
 pub fn Forums() -> impl IntoView {
-    let forums: Resource<Result<Vec<Forum>, ApiError>> =
-        Resource::new(move || (), move |()| api::get_forums());
+    let categories: Resource<Result<Vec<Category>, ApiError>> =
+        Resource::new(move || (), move |()| api::get_categories());
 
     view! {
       <Suspense fallback=move || {
         view! { <p>"Loading forums..."</p> }
       }>
-        <ul class="mb-2 text-lg font-semibold text-gray-900">
-          <For
-            each=move || {
-              let Some(forum_list) = forums.get() else { return vec![] };
-              forum_list.unwrap()
+
+        <For
+          each=move || {
+            let Some(categories_list) = categories.get() else { return vec![] };
+            categories_list.unwrap()
+          }
+          key=|category| category.forums.len()
+          children=move |category| {
+            view! {
+              <h2>{category.name}</h2>
+
+              <ul class="mb-2 text-lg font-semibold text-gray-900">
+                {category
+                  .forums
+                  .into_iter()
+                  .map(|forum| {
+                    view! {
+                      <li class="space-y-1 max-w-md list-disc list-inside text-gray-500">
+                        <a
+                          href=format!("/forum/{}", forum.id)
+                          class="font-medium text-blue-600 underline hover:no-underline"
+                        >
+                          {forum.name}
+                        </a>
+                      </li>
+                    }
+                  })
+                  .collect_view()}
+              </ul>
             }
-            key=|forum| forum.id
-            children=move |forum| {
-              view! {
-                <li class="space-y-1 max-w-md list-disc list-inside text-gray-500">
-                  <a
-                    href=format!("/forum/{}", forum.id)
-                    class="font-medium text-blue-600 underline hover:no-underline"
-                  >
-                    {forum.name}
-                  </a>
-                </li>
-              }
-            }
-          />
-        </ul>
+          }
+        />
+
       </Suspense>
     }
 }

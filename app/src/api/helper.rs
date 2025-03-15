@@ -3,7 +3,9 @@
 //! Separating it because I want [`super`] to only contain functions that
 //! are also API endpoints (`#[server]`)
 
-use super::{ApiError, Collection, Counter, Database, Forum, GetCollection, Thread, bson};
+use super::{
+    ApiError, Category, Collection, Counter, Database, Forum, GetCollection, Thread, bson,
+};
 use leptos::prelude::*;
 
 /// Gives access to the [`Database`]
@@ -65,9 +67,28 @@ pub async fn get_thread(thread_id: u32, db: Database) -> Result<Thread, ApiError
 ///
 /// * [`ApiError::NotFound`] if the `forum_id` is not in the db
 /// * [`ApiError::Db`] if the db connection fails in any way
+#[allow(
+    clippy::missing_panics_doc,
+    reason = "made sure otherwise it's ok to unwrap"
+)]
 pub async fn get_forum(forum_id: u32, db: Database) -> Result<Forum, ApiError> {
-    let forum_col = Forum::collection(&db);
-    let forum = forum_col.find_one(bson::doc! {"id": forum_id}).await?;
+    let category_col = Category::collection(&db);
+    let category = category_col
+        .find_one(bson::doc! {"forums.id": forum_id})
+        .await?;
 
-    forum.ok_or(ApiError::NotFound("forum".into(), forum_id))
+    // easier than dealing with projections in mongodb and Rust (maybe someday I'm skilled enough)
+    let Some(category) = category else {
+        return Err(ApiError::NotFound("forum".into(), forum_id));
+    };
+
+    // or maybe in future make sure this array is sorted -> binary search for forum_id
+    // but even then, with projections I could make less data be sent over the network
+    let forum = category
+        .forums
+        .into_iter()
+        .find(|f| f.id == forum_id)
+        .expect("already checked before for existence");
+
+    Ok(forum)
 }
