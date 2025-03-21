@@ -1,6 +1,7 @@
 use crate::api;
 use api::{ApiError, Category, Post, Thread};
 
+use leptos::either::{Either, EitherOf3};
 use leptos::{logging, prelude::*};
 // use leptos_meta::Title;
 use leptos_router::{
@@ -61,26 +62,34 @@ struct ForumParams {
 pub fn ForumOverview() -> impl IntoView {
     let params = use_params::<ForumParams>();
     let Ok(ForumParams { id }) = params.get_untracked() else {
-        return view! {
+        return Either::Left(view! {
           <h2 class="text-4xl font-bold">"Invalid id!"</h2>
           <a href="/" class="block rounded-sm hover:text-blue-700">
             <h3 class="text-3xl font-bold">"Go to the frontpage"</h3>
           </a>
-        }
-        .into_any();
+        });
     };
 
-    let n = Resource::new(move || (), move |()| api::get_forum(id));
-    let a = Suspend::new(async move {
-        let (forum, category_name) = match n.await {
-            Ok(forum) => forum,
+    let (error, set_error) = signal::<Option<ApiError>>(None);
+
+    let forum_res = Resource::new(move || (), move |()| api::get_forum(id));
+    let forum_head_view = move || {
+        let Some(forum_res) = forum_res.get() else {
+            // necessary check bc <Suspense/> will render children once before resource is loaded
+            return EitherOf3::A(view! { <p>"initial"</p> });
+        };
+        let (forum, category_name) = match forum_res {
+            Ok(forum) => {
+                set_error(None);
+                forum
+            }
             Err(err) => {
                 logging::log!("{err:?} - {err}");
-                return view! { <h2 class="text-4xl font-bold">"Error occured! " {format!("{err:?}")}</h2> }
-                    .into_any();
+                set_error(Some(err));
+                return EitherOf3::B(().into_view());
             }
         };
-        view! {
+        EitherOf3::C(view! {
           <p>
             <a href="/" class="font-medium text-blue-600 underline hover:no-underline">
               "Forum"
@@ -97,23 +106,51 @@ pub fn ForumOverview() -> impl IntoView {
           </p>
           <h2 class="text-4xl font-bold">{forum.name}</h2>
           <p>"Forum id: "{forum.id}</p>
-        }
-        .into_any()
-    });
+        })
+    };
 
-    view! {
-      {a}
-      <Threads forum_id=id />
-    }
-    .into_any()
+    let errored_view = move || {
+        let Some(api_error) = error() else {
+            return Either::Left(view! { <p>"This shouldn't happen!"</p> });
+        };
+
+        let msg = match api_error {
+            ApiError::NotFound(_, id) => {
+                format!("There exists no forum with the id {id}")
+            }
+            _ => format!("Error from server: {api_error}"),
+        };
+
+        Either::Right(view! { <p class="text-lg font-bold text-red-700">{msg}</p> })
+    };
+    let waiting_view = move || {
+        view! { <p>"Loading the forum..."</p> }
+    };
+
+    // for future reference: (still not sure though)
+    // Suspense will wait for resources read synchronously, i.e. in a blocking way, and show fallback
+    // if you use Suspend it will load it in the background, but still display the page
+    // (unless a synchronous element blocks it)
+    // so, synchronous for elements that MUST appear
+    // asynchronous for elements that can lazily load in the background?
+    // and.. for the above to work, Suspense only works on resources in its DIRECT children?
+    Either::Right(view! {
+      <Suspense fallback=waiting_view>
+        {forum_head_view} <Show when=move || error().is_none() fallback=errored_view>
+          <Threads forum_id=id />
+        </Show>
+      </Suspense>
+    })
 }
 
 /// Renders a list of all [`Threads`][Thread] of a given [`Forum`]
 #[component]
 pub fn Threads(forum_id: u32) -> impl IntoView {
     let create_thread = ServerAction::<api::CreateThread>::new();
-    let threads: Resource<Result<Vec<Thread>, ApiError>> =
+    let threads_res: Resource<Result<Vec<Thread>, ApiError>> =
         Resource::new(move || (), move |()| api::get_threads(forum_id));
+
+    let (error, set_error) = signal::<Option<ApiError>>(None);
 
     // redirect to created thread on thread creation
     Effect::new(move |_| {
@@ -127,16 +164,51 @@ pub fn Threads(forum_id: u32) -> impl IntoView {
         }
     });
 
+    let thread_list_view = move || {
+        Suspend::new(async move {
+            let threads = match threads_res.await {
+                Ok(threads) => {
+                    set_error(None);
+                    threads
+                }
+                Err(err) => {
+                    logging::log!("{err:?} - {err}");
+                    set_error(Some(err));
+                    return Either::Left(().into_view());
+                }
+            };
+            Either::Right(
+                threads
+                    .into_iter()
+                    .map(|thread| {
+                        view! {
+                          <li class="space-y-1 max-w-md list-disc list-inside text-gray-500">
+                            <a
+                              href=format!("/thread/{}", thread.id)
+                              class="font-medium text-blue-600 underline hover:no-underline"
+                            >
+                              {thread.subject}
+                            </a>
+                          </li>
+                        }
+                    })
+                    .collect_view(),
+            )
+        })
+    };
+
     // server-side error handling
-    let error = move || {
+    let form_errored_view = move || {
         // will be None before first dispatch
         let Some(val) = create_thread.value().get() as Option<Result<u32, ApiError>> else {
-            return ().into_any();
+            return Either::Left(().into_view());
         };
         // Will be Ok if no errors occured
         let Err(e) = val else {
-            return ().into_any();
+            return Either::Left(().into_view());
         };
+
+        logging::log!("{e:?} - {e}");
 
         let msg = match e {
             ApiError::EmptyContent => "Post content cannot be empty!".into(),
@@ -144,59 +216,43 @@ pub fn Threads(forum_id: u32) -> impl IntoView {
             _ => format!("Error from server: {e}"),
         };
 
-        view! { <p class="text-lg font-bold text-red-700">{msg}</p> }.into_any()
+        Either::Right(view! { <p class="text-lg font-bold text-red-700">{msg}</p> })
     };
-
-    let thread_list_view = move || {
-        Suspend::new(async move {
-            threads
-                .await
-                .unwrap()
-                .into_iter()
-                .map(|thread| {
-                    view! {
-                      <li class="space-y-1 max-w-md list-disc list-inside text-gray-500">
-                        <a
-                          href=format!("/thread/{}", thread.id)
-                          class="font-medium text-blue-600 underline hover:no-underline"
-                        >
-                          {thread.subject}
-                        </a>
-                      </li>
-                    }
-                })
-                .collect_view()
-        })
+    let waiting_view = move || {
+        view! { <p>"Loading the threads..."</p> }
     };
 
     view! {
-      {error}
-      <ActionForm
-        action=create_thread
-        attr:class="max-w-md w-full mb-4 border border-gray-200 rounded-lg bg-gray-50"
-      >
-        // I hope there's a better way to do this...
-        <input class="hidden" name="forum_id" value=forum_id />
-        <input
-          name="subject"
-          placeholder="Write a subject..."
-          class="block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-        />
-        <textarea
-          name="post_content"
-          rows="5"
-          placeholder="Write a post..."
-          class="py-2 px-4 w-full text-sm text-gray-900 bg-white rounded-t-lg border-0 focus:ring-0 placeholder:italic"
-        ></textarea>
-        <div class="flex justify-between items-center py-2 px-3 border-t border-gray-200">
+      <Suspense fallback=waiting_view>
+        {form_errored_view} <Show when=move || error().is_some()>
+          <p>"big error"</p>
+        </Show>
+        <ActionForm
+          action=create_thread
+          attr:class="max-w-md w-full mb-4 border border-gray-200 rounded-lg bg-gray-50"
+        >
+          // I hope there's a better way to do this...
+          <input class="hidden" name="forum_id" value=forum_id />
           <input
-            type="submit"
-            value="Create Thread"
-            class="inline-flex items-center py-2.5 px-4 text-xs font-medium text-center text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:ring-blue-200"
+            name="subject"
+            placeholder="Write a subject..."
+            class="block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-blue-500"
           />
-        </div>
-      </ActionForm>
-      <ol class="mb-2 text-lg font-semibold text-gray-900">{thread_list_view}</ol>
+          <textarea
+            name="post_content"
+            rows="5"
+            placeholder="Write a post..."
+            class="py-2 px-4 w-full text-sm text-gray-900 bg-white rounded-t-lg border-0 focus:ring-0 placeholder:italic"
+          ></textarea>
+          <div class="flex justify-between items-center py-2 px-3 border-t border-gray-200">
+            <input
+              type="submit"
+              value="Create Thread"
+              class="inline-flex items-center py-2.5 px-4 text-xs font-medium text-center text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:ring-blue-200"
+            />
+          </div>
+        </ActionForm> <ol class="mb-2 text-lg font-semibold text-gray-900">{thread_list_view}</ol>
+      </Suspense>
     }
 }
 

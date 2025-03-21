@@ -203,6 +203,7 @@ pub async fn get_categories() -> Result<Vec<Category>, ApiError> {
 #[server]
 pub async fn get_forum(forum_id: u32) -> Result<(Forum, String), ApiError> {
     let db = helper::get_db()?;
+    // tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
     helper::get_forum(forum_id, db).await
 }
 
@@ -217,6 +218,7 @@ pub async fn get_thread(thread_id: u32) -> Result<Thread, ApiError> {
 #[server]
 pub async fn get_threads(forum_id: u32) -> Result<Vec<Thread>, ApiError> {
     let db = helper::get_db()?;
+    // tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
     let thread_col = Thread::collection(&db);
     let mut threads = vec![];
     let mut threads_cursor = thread_col
@@ -249,6 +251,9 @@ pub async fn create_thread(
     }
 
     let db = helper::get_db()?;
+
+    let _ = helper::get_forum(forum_id, db.clone()).await?;
+
     let counter_col = Counter::collection(&db);
     let thread_id = helper::get_and_increment_id_of("thread", counter_col.clone()).await?;
 
