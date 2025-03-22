@@ -20,3 +20,6 @@ This started out as a forum, but I think I'm gonna expand it to what I originall
 Absolutely huge-ass project, taking inspiration from Gazelle and UNIT3D I guess,
 
 But sounds fun I think... or at least the little bit of fun/distraction from other things :))) 🦊 :/
+
+For the forum aspect, maybe also take some inspiration from more modern takes like https://users.rust-lang.org/
+but combine it with the old-school and clear way like the AB Forum

@@ -13,14 +13,14 @@ opt-level = 'z'
 # leptos_meta = { version = "0.7" }
 # leptos_router = { version = "0.7", features = ["nightly"] }
 # leptos_axum = { version = "0.7" }
-leptos = { git = "https://github.com/leptos-rs/leptos.git", branch = "leptos_0.8", features = [
+leptos = { git = "https://github.com/leptos-rs/leptos.git", branch = "main", features = [
     "nightly",
 ] }
-leptos_meta = { git = "https://github.com/leptos-rs/leptos.git", branch = "leptos_0.8" }
-leptos_router = { git = "https://github.com/leptos-rs/leptos.git", branch = "leptos_0.8", features = [
+leptos_meta = { git = "https://github.com/leptos-rs/leptos.git", branch = "main" }
+leptos_router = { git = "https://github.com/leptos-rs/leptos.git", branch = "main", features = [
     "nightly",
 ] }
-leptos_axum = { git = "https://github.com/leptos-rs/leptos.git", branch = "leptos_0.8" }
+leptos_axum = { git = "https://github.com/leptos-rs/leptos.git", branch = "main" }
 
 axum = { version = "0.8", features = ["macros"] }
 cfg-if = "1"
