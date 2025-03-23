@@ -185,6 +185,7 @@ impl CollectionName for Post {
 #[server]
 pub async fn get_categories() -> Result<Vec<Category>, ApiError> {
     let db = helper::get_db()?;
+    // tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
     let category_col = Category::collection(&db);
     let mut categories = vec![];
     let mut categories_cursor = category_col
@@ -211,6 +212,7 @@ pub async fn get_forum(forum_id: u32) -> Result<(Forum, String), ApiError> {
 #[server]
 pub async fn get_thread(thread_id: u32) -> Result<Thread, ApiError> {
     let db = helper::get_db()?;
+    // tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
     helper::get_thread(thread_id, db).await
 }
 
@@ -301,6 +303,7 @@ pub async fn get_latest_posts(num: i64) -> Result<Vec<Post>, ApiError> {
 #[server]
 pub async fn get_posts_from_thread(thread_id: u32) -> Result<Vec<Post>, ApiError> {
     let db = helper::get_db()?;
+    // tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
     let post_col = Post::collection(&db);
     let mut posts = vec![];
     let mut post_cursor = post_col

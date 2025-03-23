@@ -12,42 +12,62 @@ use leptos_router::{
 /// Renders a list of all [`Forums`][Forum]
 #[component]
 pub fn Forums() -> impl IntoView {
-    let categories: Resource<Result<Vec<Category>, ApiError>> =
+    let categories_res: Resource<Result<Vec<Category>, ApiError>> =
         Resource::new(move || (), move |()| api::get_categories());
+
+    let category_list_view = move || {
+        Suspend::new(async move {
+            let categories = match categories_res.await {
+                Ok(categories) => categories,
+                Err(err) => {
+                    logging::log!("{err:?} - {err}");
+                    return Either::Left(view! { <p>"Forums couldn't be loaded!"</p> });
+                }
+            };
+
+            let view = categories
+                .into_iter()
+                .map(|category| CategoryItem(CategoryItemProps { category }))
+                .collect_view();
+            Either::Right(view)
+        })
+    };
 
     view! {
       <Suspense fallback=move || {
         view! { <p>"Loading forums..."</p> }
       }>
-        <For
-          each=move || {
-            let Some(categories_list) = categories.get() else { return vec![] };
-            categories_list.unwrap()
-          }
-          key=|category| category.forums.len()
-          let(category)
-        >
-          <h2 class="text-2xl font-bold">{category.name.clone()}</h2>
-          <ul class="mb-2 text-lg font-semibold text-gray-900">
-            {category
-              .forums
-              .into_iter()
-              .map(|forum| {
-                view! {
-                  <li class="space-y-1 max-w-md list-disc list-inside text-gray-500">
-                    <a
-                      href=format!("/forum/{}", forum.id)
-                      class="font-medium text-blue-600 underline hover:no-underline"
-                    >
-                      {forum.name}
-                    </a>
-                  </li>
-                }
-              })
-              .collect_view()}
-          </ul>
-        </For>
+        // NotFoundError: Failed to execute 'insertBefore' on 'Node': The node before which the new node is to be inserted is not a child of this node.
+        // when using <For /> and navigating to this page from any other
+        // see https://github.com/leptos-rs/leptos/issues/3385
+        {category_list_view}
       </Suspense>
+    }
+}
+
+/// Renders a single forum category with its forums as a list
+#[component]
+fn CategoryItem(category: Category) -> impl IntoView {
+    view! {
+      <h2 class="text-2xl font-bold">{category.name.clone()}</h2>
+      <ul class="mb-2 text-lg font-semibold text-gray-900">
+        {category
+          .forums
+          .into_iter()
+          .map(|forum| {
+            view! {
+              <li class="space-y-1 max-w-md list-disc list-inside text-gray-500">
+                <a
+                  href=format!("/forum/{}", forum.id)
+                  class="font-medium text-blue-600 underline hover:no-underline"
+                >
+                  {forum.name}
+                </a>
+              </li>
+            }
+          })
+          .collect_view()}
+      </ul>
     }
 }
 
@@ -134,6 +154,8 @@ pub fn ForumOverview() -> impl IntoView {
     // so, synchronous for elements that MUST appear
     // asynchronous for elements that can lazily load in the background?
     // and.. for the above to work, Suspense only works on resources in its DIRECT children?
+    // edit: Tbh IM NOT FUCKING SURE. Suspend::new() stuff also makes it fall back in other stuff
+    // idfk im too stoopid (see) ThreadOverview suspense also waiting for <Posts /> to load
     Either::Right(view! {
       <Suspense fallback=waiting_view>
         {forum_head_view} <Show when=move || error().is_none() fallback=errored_view>
@@ -267,63 +289,74 @@ struct ThreadParams {
 pub fn ThreadOverview() -> impl IntoView {
     let params = use_params::<ThreadParams>();
     let Ok(ThreadParams { id }) = params.get_untracked() else {
-        return view! {
+        let view = view! {
           <h2 class="text-4xl font-bold">"Invalid id!"</h2>
           <a href="/" class="block rounded-sm hover:text-blue-700">
             <h3 class="text-3xl font-bold">"Go to the frontpage"</h3>
           </a>
-        }
-        .into_any();
+        };
+        return Either::Left(view);
     };
 
-    let n = Resource::new(move || (), move |()| api::get_thread(id));
-    let a = Suspend::new(async move {
-        let thread = match n.await {
-            Ok(thread) => thread,
-            Err(err) => {
-                logging::log!("{err:?} - {err}");
-                return view! { <h2 class="text-4xl font-bold">"Error occured! " {format!("{err:?}")}</h2> }
-                    .into_any();
-            }
-        };
-        let (forum, category_name) =
-            Resource::new(move || (), move |()| api::get_forum(thread.forum_id))
-                .await
-                .unwrap();
-        view! {
-          <p>
-            <a href="/" class="font-medium text-blue-600 underline hover:no-underline">
-              "Forum"
-            </a>
-            " -> "
-            {category_name.to_string()}
-            " -> "
-            <a
-              href=format!("/forum/{}", forum.id)
-              class="font-medium text-blue-600 underline hover:no-underline"
-            >
-              {forum.name.to_string()}
-            </a>
-            " -> "
-            <a
-              href=format!("/thread/{}", thread.id)
-              class="font-medium text-blue-600 underline hover:no-underline"
-            >
-              {thread.subject.to_string()}
-            </a>
-          </p>
-          <h2 class="text-4xl font-bold">{thread.subject}</h2>
-          <p>"Thread id: "{thread.id}</p>
-          <p>"Origin post id: "{thread.origin_post_id}</p>
-        }
-        .into_any()
-    });
+    let thread_res = Resource::new(move || (), move |()| api::get_thread(id));
 
-    view! {
-      {a}
-      <Posts thread_id=id />
-    }
-    .into_any()
+    let thread_head_view = move || {
+        Suspend::new(async move {
+            let thread = match thread_res.await {
+                Ok(thread) => thread,
+                Err(err) => {
+                    logging::log!("{err:?} - {err}");
+                    let view = view! { <h2 class="text-4xl font-bold">"Error occured! " {format!("{err:?}")}</h2> };
+                    return Either::Left(view);
+                }
+            };
+            let forum_res = Resource::new(move || (), move |()| api::get_forum(thread.forum_id));
+            let (forum, category_name) = match forum_res.await {
+                Ok(n) => (n.0, n.1),
+                Err(err) => {
+                    // will only  occur if forum_id in thread doesn't exist as a forum
+                    // => breaks invariant in get_thread
+                    logging::log!("{err:?} - {err}");
+                    let view = view! { <h2 class="text-4xl font-bold">"Error occured! " {format!("{err:?}")}</h2> };
+                    return Either::Left(view);
+                }
+            };
+            let view = view! {
+              <p>
+                <a href="/" class="font-medium text-blue-600 underline hover:no-underline">
+                  "Forum"
+                </a>
+                " -> "
+                {category_name.to_string()}
+                " -> "
+                <a
+                  href=format!("/forum/{}", forum.id)
+                  class="font-medium text-blue-600 underline hover:no-underline"
+                >
+                  {forum.name.to_string()}
+                </a>
+                " -> "
+                <a
+                  href=format!("/thread/{}", thread.id)
+                  class="font-medium text-blue-600 underline hover:no-underline"
+                >
+                  {thread.subject.to_string()}
+                </a>
+              </p>
+              <h2 class="text-4xl font-bold">{thread.subject}</h2>
+              <p>"Thread id: "{thread.id}</p>
+              <p>"Origin post id: "{thread.origin_post_id}</p>
+            };
+            Either::Right(view)
+        })
+    };
+
+    let view = view! {
+      <Suspense fallback=move || {
+        view! { <p>"Loading thread..."</p> }
+      }>{thread_head_view}<Posts thread_id=id /></Suspense>
+    };
+    Either::Right(view)
 }
 
 /// Renders a list of [`Posts`][Post] from the given [`Thread`]
@@ -333,25 +366,25 @@ fn Posts(thread_id: u32) -> impl IntoView {
 
     let create_post = ServerAction::<api::CreatePost>::new();
 
-    let posts = Resource::new(
+    let posts_res = Resource::new(
         move || create_post.version().get(),
         move |_| api::get_posts_from_thread(thread_id),
     );
 
     let post_list_view = move || {
         Suspend::new(async move {
-            posts
-                .await
-                .unwrap()
+            let posts = match posts_res.await {
+                Ok(posts) => posts,
+                Err(err) => {
+                    logging::log!("{err:?} - {err}");
+                    return Either::Left(view! { <p>"Posts couldn't be loaded!"</p> });
+                }
+            };
+            let view = posts
                 .into_iter()
-                .map(|post| {
-                    view! {
-                      <li>
-                        <PostItem post />
-                      </li>
-                    }
-                })
-                .collect_view()
+                .map(|post| PostItem(PostItemProps { post }))
+                .collect_view();
+            Either::Right(view)
         })
     };
 
@@ -359,11 +392,11 @@ fn Posts(thread_id: u32) -> impl IntoView {
     let error = move || {
         // will be None before first dispatch
         let Some(val) = create_post.value().get() as Option<Result<(), ApiError>> else {
-            return ().into_any();
+            return Either::Left(().into_view());
         };
         // Will be Ok if no errors occured
         let Err(e) = val else {
-            return ().into_any();
+            return Either::Left(().into_view());
         };
 
         let msg = match e {
@@ -371,7 +404,8 @@ fn Posts(thread_id: u32) -> impl IntoView {
             _ => format!("Error from server: {e}"),
         };
 
-        view! { <p class="text-lg font-bold text-red-700">{msg}</p> }.into_any()
+        let view = view! { <p class="text-lg font-bold text-red-700">{msg}</p> };
+        Either::Right(view)
     };
 
     let (client_error, set_client_error) = signal("none".to_string());
@@ -383,9 +417,10 @@ fn Posts(thread_id: u32) -> impl IntoView {
       // client-side errors / validation
       {move || {
         if client_error() == "none" {
-          ().into_any()
+          Either::Left(().into_view())
         } else {
-          view! { <p class="text-lg font-bold text-red-700">{client_error()}</p> }.into_any()
+          let view = view! { <p class="text-lg font-bold text-red-700">{client_error()}</p> };
+          Either::Right(view)
         }
       }}
 
@@ -430,28 +465,32 @@ fn Posts(thread_id: u32) -> impl IntoView {
     }
 }
 
-/// Box containing a single [`Post`]
+/// Renders a list item with a box containing a single [`Post`]
 #[component]
 pub fn PostItem(post: Post) -> impl IntoView {
     view! {
-      <article class="p-6 w-full max-w-md bg-white rounded-lg border border-gray-200 shadow-sm0">
-        <div class="flex justify-between">
-          <h6 class="mb-2 text-xs font-bold tracking-tight text-gray-900">
-            "Posted at "<time datetime=post.date_in_berlin()>{post.date_in_berlin()}</time>
-          </h6>
-          <h6 class="mb-2 text-xs font-bold tracking-tight text-gray-900">
-            "Post #"{post.id}" in "
-            <a
-              href=format!("/thread/{}", post.thread_id)
-              class="font-medium text-blue-600 underline hover:no-underline"
-            >
-              "Thread #"
-              {post.thread_id}
-            </a>
-          </h6>
-        </div>
-        // to render newlines
-        <p class="mb-3 font-normal text-gray-700 whitespace-pre-wrap break-words">{post.content}</p>
-      </article>
+      <li>
+        <article class="p-6 w-full max-w-md bg-white rounded-lg border border-gray-200 shadow-sm0">
+          <div class="flex justify-between">
+            <h6 class="mb-2 text-xs font-bold tracking-tight text-gray-900">
+              "Posted at "<time datetime=post.date_in_berlin()>{post.date_in_berlin()}</time>
+            </h6>
+            <h6 class="mb-2 text-xs font-bold tracking-tight text-gray-900">
+              "Post #"{post.id}" in "
+              <a
+                href=format!("/thread/{}", post.thread_id)
+                class="font-medium text-blue-600 underline hover:no-underline"
+              >
+                "Thread #"
+                {post.thread_id}
+              </a>
+            </h6>
+          </div>
+          // to render newlines
+          <p class="mb-3 font-normal text-gray-700 whitespace-pre-wrap break-words">
+            {post.content}
+          </p>
+        </article>
+      </li>
     }
 }

@@ -57,6 +57,8 @@ pub async fn get_thread(thread_id: u32, db: Database) -> Result<Thread, ApiError
     let thread_col = Thread::collection(&db);
     let thread = thread_col.find_one(bson::doc! {"id": thread_id}).await?;
 
+    // invariant: if thread is saved in database, the forum it is in must also exist
+
     thread.ok_or(ApiError::NotFound("thread".into(), thread_id))
 }
 
