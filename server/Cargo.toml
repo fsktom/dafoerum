@@ -7,7 +7,7 @@ edition = "2024"
 
 [dependencies]
 app = { path = "../app", default-features = false, features = ["ssr"] }
-leptos = { workspace = true, features = [ "ssr" ]}
+leptos = { workspace = true, features = ["ssr"] }
 leptos_axum.workspace = true
 
 axum.workspace = true
@@ -17,7 +17,10 @@ tower.workspace = true
 tower-http.workspace = true
 log.workspace = true
 mongodb.workspace = true
-serde.workspace=true
+serde.workspace = true
 dotenvy = "0.15"
 anyhow = "1.0"
-jiff.workspace=true
+jiff.workspace = true
+
+[lints]
+workspace = true

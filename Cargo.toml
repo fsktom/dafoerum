@@ -41,6 +41,20 @@ serde = { version = "1.0", features = ["derive"] }
 
 jiff = { version = "0.2", features = ["serde"] }
 
+[workspace.lints.rust]
+unsafe_code = "deny"
+# missing_docs = "warn"
+
+[workspace.lints.clippy]
+# cargo = "warn"
+pedantic = "warn"
+# missing_docs_in_private_items = "warn"
+clone_on_ref_ptr = "warn" # be explicit on cheap cloning
+get_unwrap = "warn"
+
+[workspace.lints.rustdoc]
+# todo
+
 # See https://github.com/leptos-rs/cargo-leptos for documentation of all the parameters.
 
 # A leptos project defines which workspace members

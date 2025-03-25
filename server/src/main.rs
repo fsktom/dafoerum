@@ -1,4 +1,3 @@
-use app::*;
 use axum::Router;
 use axum::extract::FromRef;
 use leptos::logging::log;
@@ -19,7 +18,7 @@ async fn main() -> anyhow::Result<()> {
     let addr = conf.leptos_options.site_addr;
     let leptos_options = conf.leptos_options;
 
-    let routes = generate_route_list(App);
+    let routes = generate_route_list(app::App);
 
     dotenvy::dotenv()?;
 
@@ -32,9 +31,11 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .leptos_routes_with_context(&state, routes, move || provide_context(db.clone()), {
             let opts = state.clone().leptos_options;
-            move || shell(opts.clone())
+            move || app::shell(opts.clone())
         })
-        .fallback(leptos_axum::file_and_error_handler::<AppState, _>(shell))
+        .fallback(leptos_axum::file_and_error_handler::<AppState, _>(
+            app::shell,
+        ))
         .with_state(state);
 
     log!("listening on http://{}", &addr);

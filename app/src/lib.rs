@@ -4,9 +4,6 @@
 //! is gated under the `ssr` feature using `#[cfg(feature = "ssr")]`
 //! or implicitly with the `#[server]` macro
 
-#![deny(unsafe_code, reason = "unsafe bad")]
-#![warn(clippy::pedantic)]
-#![warn(clippy::clone_on_ref_ptr, reason = "be explicit on cheap cloning")]
 #![allow(
     clippy::must_use_candidate,
     reason = "works badly with rust-analyzer and #[component]"

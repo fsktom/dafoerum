@@ -18,7 +18,7 @@ jiff.workspace = true
 serde.workspace = true
 bson.workspace = true
 mongodb = { workspace = true, optional = true }
-tokio = {workspace = true, optional = true}
+tokio = { workspace = true, optional = true }
 
 [features]
 default = []
@@ -29,5 +29,8 @@ ssr = [
     "leptos_router/ssr",
     "dep:leptos_axum",
     "dep:mongodb",
-    "dep:tokio"
+    "dep:tokio",
 ]
+
+[lints]
+workspace = true
