@@ -1,5 +1,5 @@
 use crate::api;
-use api::{ApiError, Category, Post, Thread};
+use api::{ApiError, Category, Forum, Post, Thread};
 
 use leptos::either::{Either, EitherOf3};
 use leptos::{logging, prelude::*};
@@ -54,7 +54,7 @@ fn CategoryItem(category: Category) -> impl IntoView {
         {category
           .forums
           .into_iter()
-          .map(|forum| {
+          .map(|forum: Forum| {
             view! {
               <li class="space-y-1 max-w-md list-disc list-inside text-gray-500">
                 <a
@@ -176,7 +176,9 @@ pub fn Threads(forum_id: u32) -> impl IntoView {
 
     // redirect to created thread on thread creation
     Effect::new(move |_| {
-        let Some(result) = create_thread.value().get() else {
+        // *deref for Option<&T> and .take() for Option<T>
+        // see reactive_graph::send_wrapper_ext::SendOption
+        let Some(result) = create_thread.value().get().take() else {
             return;
         };
         if let Ok(thread_id) = result {
@@ -222,7 +224,7 @@ pub fn Threads(forum_id: u32) -> impl IntoView {
     // server-side error handling
     let form_errored_view = move || {
         // will be None before first dispatch
-        let Some(val) = create_thread.value().get() as Option<Result<u32, ApiError>> else {
+        let Some(val) = create_thread.value().get().take() else {
             return Either::Left(().into_view());
         };
         // Will be Ok if no errors occured
@@ -391,7 +393,7 @@ fn Posts(thread_id: u32) -> impl IntoView {
     // server-side error handling
     let error = move || {
         // will be None before first dispatch
-        let Some(val) = create_post.value().get() as Option<Result<(), ApiError>> else {
+        let Some(val) = create_post.value().get().take() else {
             return Either::Left(().into_view());
         };
         // Will be Ok if no errors occured
