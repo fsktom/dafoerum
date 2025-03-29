@@ -2,6 +2,7 @@ use crate::api;
 use api::{ApiError, Category, Forum, Post, Thread};
 
 use leptos::either::{Either, EitherOf3};
+use leptos::html::ol;
 use leptos::{logging, prelude::*};
 // use leptos_meta::Title;
 use leptos_router::{
@@ -110,7 +111,7 @@ pub fn ForumOverview() -> impl IntoView {
             }
         };
         EitherOf3::C(view! {
-          <p>
+          <nav class="self-start">
             <a href="/" class="font-medium text-blue-600 underline hover:no-underline">
               "Forum"
             </a>
@@ -123,7 +124,7 @@ pub fn ForumOverview() -> impl IntoView {
             >
               {forum.name.to_string()}
             </a>
-          </p>
+          </nav>
           <h2 class="text-4xl font-bold">{forum.name}</h2>
           <p>"Forum id: "{forum.id}</p>
         })
@@ -386,7 +387,7 @@ fn Posts(thread_id: u32) -> impl IntoView {
                 .into_iter()
                 .map(|post| PostItem(PostItemProps { post }))
                 .collect_view();
-            Either::Right(view)
+            Either::Right(ol().class("flex flex-col gap-2").child(view))
         })
     };
 
@@ -463,7 +464,7 @@ fn Posts(thread_id: u32) -> impl IntoView {
           />
         </div>
       </ActionForm>
-      <ol class="flex flex-col gap-2">{post_list_view}</ol>
+      {post_list_view}
     }
 }
 

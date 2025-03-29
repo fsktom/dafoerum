@@ -12,6 +12,9 @@
 pub mod api;
 mod forum;
 
+use leptos::either::Either;
+use leptos::html::ol;
+use leptos::logging;
 use leptos::prelude::*;
 use leptos_meta::{MetaTags, Stylesheet, Title, provide_meta_context};
 use leptos_router::{
@@ -32,7 +35,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
           <HydrationScripts options />
           <MetaTags />
         </head>
-        <body>
+        <body class="bg-purple-50 h-svh">
           <App />
         </body>
       </html>
@@ -51,16 +54,18 @@ pub fn App() -> impl IntoView {
       <Title text="Dafoerum" formatter=title_format />
 
       <Router>
-        <header class="flex justify-center">
+        <header>
           <NavBar />
         </header>
-        <main class="flex flex-col gap-5 items-center">
-          <Routes fallback=|| "Page not found.".into_view()>
-            <Route path=StaticSegment("") view=HomePage />
-            <Route path=StaticSegment("/latest") view=Latest />
-            <Route path=path!("/forum/:id") view=forum::ForumOverview />
-            <Route path=path!("/thread/:id") view=forum::ThreadOverview />
-          </Routes>
+        <main class="flex flex-col items-center">
+          <div class="w-full sm:w-2/3">
+            <Routes fallback=|| "Page not found.".into_view()>
+              <Route path=StaticSegment("") view=HomePage />
+              <Route path=StaticSegment("/latest") view=Latest />
+              <Route path=path!("/forum/:id") view=forum::ForumOverview />
+              <Route path=path!("/thread/:id") view=forum::ThreadOverview />
+            </Routes>
+          </div>
         </main>
       </Router>
     }
@@ -73,15 +78,13 @@ fn NavBar() -> impl IntoView {
 
     // https://flowbite.com/docs/components/navbar/
     view! {
-      <nav class="bg-white border-gray-200">
-        <div class="flex flex-wrap justify-between items-center p-4 mx-auto max-w-screen-xl">
-          <div class="block w-auto">
-            <ul class="flex flex-row space-x-8 font-medium bg-white rounded-lg border-0 border-gray-100">
-              <NavLink href="/" content="Home" pathname=path />
-              <NavLink href="/latest" content="Latest Posts" pathname=path />
-              <NavLink href="/profile" content="Profile" pathname=path />
-            </ul>
-          </div>
+      <nav class="hidden justify-center w-full h-20 bg-purple-700 border-purple-200 sm:flex">
+        <div class="flex flex-wrap justify-between items-center p-4 max-w-screen-xl">
+          <ul class="flex flex-row gap-5 font-medium rounded-lg border-0">
+            <NavLink href="/" content="Home" pathname=path />
+            <NavLink href="/latest" content="Latest Posts" pathname=path />
+            <NavLink href="/profile" content="Profile" pathname=path />
+          </ul>
         </div>
       </nav>
     }
@@ -101,9 +104,9 @@ fn NavLink(
       <li>
         <a
           href=href
-          class="block rounded-sm hover:text-blue-700"
-          class=("text-gray-900", move || pathname() != href)
-          class=("text-blue-700", move || pathname() == href)
+          class="block p-2 rounded-sm hover:underline decoration-purple-50"
+          class=(["text-purple-100"], move || pathname() != href)
+          class=(["text-purple-50", "bg-purple-500"], move || pathname() == href)
         >
           {content}
         </a>
@@ -127,24 +130,24 @@ fn HomePage() -> impl IntoView {
 #[component]
 fn Latest() -> impl IntoView {
     const NUM_OF_POSTS_TO_FETCH: i64 = 10;
-    let posts = Resource::new(
+    let posts_res = Resource::new(
         move || (),
         |()| api::get_latest_posts(NUM_OF_POSTS_TO_FETCH),
     );
     let post_list_view = move || {
         Suspend::new(async move {
-            posts
-                .await
-                .unwrap()
+            let posts = match posts_res.await {
+                Ok(posts) => posts,
+                Err(err) => {
+                    logging::log!("{err:?} - {err}");
+                    return Either::Left(view! { <p>"Posts couldn't be loaded!"</p> });
+                }
+            };
+            let view = posts
                 .into_iter()
-                .map(|post| {
-                    view! {
-                      <li>
-                        <forum::PostItem post />
-                      </li>
-                    }
-                })
-                .collect_view()
+                .map(|post| forum::PostItem(forum::PostItemProps { post }))
+                .collect_view();
+            Either::Right(ol().class("flex flex-col gap-2").child(view))
         })
     };
 
@@ -173,7 +176,7 @@ fn Latest() -> impl IntoView {
       <h2 class="text-4xl font-extrabold">"Latest Posts"</h2>
       <button
         type="button"
-        on:click=move |_| posts.refetch()
+        on:click=move |_| posts_res.refetch()
         class="inline-flex items-center py-2.5 px-5 text-sm font-medium text-center text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 focus:outline-none me-2"
       >
         {refresh_icon}
