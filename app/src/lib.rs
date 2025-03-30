@@ -35,7 +35,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
           <HydrationScripts options />
           <MetaTags />
         </head>
-        <body class="bg-purple-50 h-svh">
+        <body class="overflow-y-scroll bg-purple-50 h-svh">
           <App />
         </body>
       </html>
@@ -57,8 +57,8 @@ pub fn App() -> impl IntoView {
         <header>
           <NavBar />
         </header>
-        <main class="flex flex-col items-center">
-          <div class="w-full sm:w-2/3">
+        <main class="flex flex-col items-center py-8">
+          <div class="flex flex-col gap-4 items-center sm:items-center sm:w-2/3 w-9/11">
             <Routes fallback=|| "Page not found.".into_view()>
               <Route path=StaticSegment("") view=HomePage />
               <Route path=StaticSegment("/latest") view=Latest />
@@ -76,9 +76,10 @@ pub fn App() -> impl IntoView {
 fn NavBar() -> impl IntoView {
     let path = use_location().pathname;
 
-    // https://flowbite.com/docs/components/navbar/
     view! {
-      <nav class="hidden justify-center w-full h-20 bg-purple-700 border-purple-200 sm:flex">
+      // hide on mobile - TBD: mobile navbar hamburger
+      <nav class="hidden justify-center w-full h-20 bg-purple-700 sm:flex shadow-[0_3px_0_theme(colors.purple.300)]">
+        // solid light purple "shadow" to seperate nav from main
         <div class="flex flex-wrap justify-between items-center p-4 max-w-screen-xl">
           <ul class="flex flex-row gap-5 font-medium rounded-lg border-0">
             <NavLink href="/" content="Home" pathname=path />
@@ -104,7 +105,7 @@ fn NavLink(
       <li>
         <a
           href=href
-          class="block p-2 rounded-sm hover:underline decoration-purple-50"
+          class="block py-2 px-4 text-lg rounded-sm hover:underline decoration-purple-50"
           class=(["text-purple-100"], move || pathname() != href)
           class=(["text-purple-50", "bg-purple-500"], move || pathname() == href)
         >
@@ -134,6 +135,9 @@ fn Latest() -> impl IntoView {
         move || (),
         |()| api::get_latest_posts(NUM_OF_POSTS_TO_FETCH),
     );
+
+    let (is_loading, set_is_loading) = signal(true);
+
     let post_list_view = move || {
         Suspend::new(async move {
             let posts = match posts_res.await {
@@ -143,6 +147,7 @@ fn Latest() -> impl IntoView {
                     return Either::Left(view! { <p>"Posts couldn't be loaded!"</p> });
                 }
             };
+            set_is_loading(false);
             let view = posts
                 .into_iter()
                 .map(|post| forum::PostItem(forum::PostItemProps { post }))
@@ -152,7 +157,7 @@ fn Latest() -> impl IntoView {
     };
 
     // https://flowbite.com/icons/
-    let refresh_icon = view! {
+    let refresh_icon_view = move || view! {
       <svg
         class="w-6 h-6 text-gray-800 dark:text-white"
         aria-hidden="true"
@@ -173,14 +178,25 @@ fn Latest() -> impl IntoView {
     };
 
     view! {
-      <h2 class="text-4xl font-extrabold">"Latest Posts"</h2>
+      <h1 class="text-4xl font-extrabold md:text-5xl">"Latest Posts"</h1>
       <button
         type="button"
-        on:click=move |_| posts_res.refetch()
-        class="inline-flex items-center py-2.5 px-5 text-sm font-medium text-center text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 focus:outline-none me-2"
+        on:click=move |_| {
+          set_is_loading(true);
+          posts_res.refetch();
+        }
+        class="inline-flex justify-center items-center py-2.5 px-5 w-60 h-10 font-medium text-center text-purple-100 rounded-lg"
+        // active:cursor-wait
+        class=(
+          ["bg-purple-800", "hover:bg-purple-900", "hover:cursor-pointer"],
+          move || !is_loading(),
+        )
+        class=(["bg-purple-500", "cursor-not-allowed"], move || is_loading())
       >
-        {refresh_icon}
-        "Check for new posts"
+        <Show when=move || !is_loading() fallback=move || "Loading...">
+          {refresh_icon_view}
+          "Check for new posts"
+        </Show>
       </button>
       <ol class="flex flex-col gap-2">{post_list_view}</ol>
     }

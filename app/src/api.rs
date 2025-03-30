@@ -285,6 +285,7 @@ pub async fn create_thread(
 #[server]
 pub async fn get_latest_posts(num: i64) -> Result<Vec<Post>, ApiError> {
     let db = helper::get_db()?;
+    // tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
     let post_col = Post::collection(&db);
     let mut posts = vec![];
     let mut post_cursor = post_col
