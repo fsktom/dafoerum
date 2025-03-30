@@ -19,7 +19,7 @@ use leptos::prelude::*;
 use leptos_meta::{MetaTags, Stylesheet, Title, provide_meta_context};
 use leptos_router::{
     StaticSegment,
-    components::{Route, Router, Routes},
+    components::{Route, Router, Routes, A},
     hooks::use_location,
     path,
 };
@@ -62,12 +62,43 @@ pub fn App() -> impl IntoView {
             <Routes fallback=|| "Page not found.".into_view()>
               <Route path=StaticSegment("") view=HomePage />
               <Route path=StaticSegment("/latest") view=Latest />
+              <Route path=StaticSegment("/forum") view=forum::Forums />
               <Route path=path!("/forum/:id") view=forum::ForumOverview />
               <Route path=path!("/thread/:id") view=forum::ThreadOverview />
             </Routes>
           </div>
         </main>
       </Router>
+    }
+}
+
+/// Used for e.g. highlighting a link if you're on a specific page
+pub enum MatchPath {
+    /// `/{path}` and `{path}`
+    Full(&'static str),
+    /// `/{path}*` amd `{path}*`
+    Start(&'static str)
+}
+impl MatchPath {
+    /// Checks if [`self`] matches the given `path`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use app::MatchPath;
+    ///
+    /// assert!(MatchPath::Full("forum").matches("/forum"));
+    /// assert!(!MatchPath::Full("forum").matches("/forum/3"));
+    ///
+    /// assert!(MatchPath::Start("forum").matches("/forum"));
+    /// assert!(MatchPath::Start("forum").matches("/forum/3"));
+    ///
+    /// ```
+    pub fn matches(&self, path: &str) -> bool {
+        match self {
+            Self::Full(p) => path == *p ||format!("/{p}") == path,
+            Self::Start(p) => path.starts_with(p) || path.starts_with(&format!("/{p}"))
+        }
     }
 }
 
@@ -82,9 +113,25 @@ fn NavBar() -> impl IntoView {
         // solid light purple "shadow" to seperate nav from main
         <div class="flex flex-wrap justify-between items-center p-4 max-w-screen-xl">
           <ul class="flex flex-row gap-5 font-medium rounded-lg border-0">
-            <NavLink href="/" content="Home" pathname=path />
-            <NavLink href="/latest" content="Latest Posts" pathname=path />
-            <NavLink href="/profile" content="Profile" pathname=path />
+            <NavLink href="/" matching=&[MatchPath::Full("")] content="Home" pathname=path />
+            <NavLink
+              href="/forum"
+              matching=&[MatchPath::Start("forum"), MatchPath::Start("thread")]
+              content="Forums"
+              pathname=path
+            />
+            <NavLink
+              href="/latest"
+              matching=&[MatchPath::Full("latest")]
+              content="Latest Posts"
+              pathname=path
+            />
+            <NavLink
+              href="/profile"
+              matching=&[MatchPath::Full("profile")]
+              content="Profile"
+              pathname=path
+            />
           </ul>
         </div>
       </nav>
@@ -96,18 +143,27 @@ fn NavBar() -> impl IntoView {
 fn NavLink(
     /// Route to the page
     href: &'static str,
+    /// Routes on which this link should be highlighted
+    matching: &'static [MatchPath],
     /// The displayed link text
     content: &'static str,
     /// Gotten by [`use_location`]
     pathname: Memo<String>,
 ) -> impl IntoView {
+    let is_current = move || {
+        matching.iter().any(|p| p.matches(&pathname()))
+    };
+
+    // doing it witha NodeRef and checking aria-working only works on full reload, and not reactive for some reason...
+    // also <A> doesn't work well with these conditional classes...
+
     view! {
       <li>
         <a
           href=href
           class="block py-2 px-4 text-lg rounded-sm hover:underline decoration-purple-50"
-          class=(["text-purple-100"], move || pathname() != href)
-          class=(["text-purple-50", "bg-purple-500"], move || pathname() == href)
+          class=(["text-purple-100"], move || !is_current())
+          class=(["text-purple-50", "bg-purple-500"], move || is_current())
         >
           {content}
         </a>
@@ -122,8 +178,14 @@ fn HomePage() -> impl IntoView {
       <h1 class="mb-4 text-4xl font-extrabold tracking-tight leading-none text-gray-900 md:text-5xl lg:text-6xl">
         "Welcome to Dafoerum!"
       </h1>
-      <h2 class="text-4xl font-bold">"Forums:"</h2>
-      <forum::Forums />
+      // https://book.leptos.dev/view/03_components.html#spreading-attributes-onto-components
+      <A
+        href="forum"
+        {..}
+        class="flex justify-center items-center p-5 h-20 text-2xl font-bold text-purple-100 uppercase bg-purple-800 rounded-2xl hover:bg-purple-900 hover:cursor-pointer flexl w-md"
+      >
+        "Go to the forum"
+      </A>
     }
 }
 

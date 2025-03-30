@@ -8,6 +8,7 @@ use leptos::{logging, prelude::*};
 use leptos_router::{
     hooks::{use_navigate, use_params},
     params::Params,
+    components::A,
 };
 
 /// Renders a list of all [`Forums`][Forum]
@@ -35,6 +36,7 @@ pub fn Forums() -> impl IntoView {
     };
 
     view! {
+      <h2 class="text-4xl font-bold">"Forums:"</h2>
       <Suspense fallback=move || {
         view! { <p>"Loading forums..."</p> }
       }>
@@ -58,12 +60,13 @@ fn CategoryItem(category: Category) -> impl IntoView {
           .map(|forum: Forum| {
             view! {
               <li class="space-y-1 max-w-md list-disc list-inside text-gray-500">
-                <a
-                  href=format!("/forum/{}", forum.id)
+                <A
+                  href=forum.id.to_string()
+                  {..}
                   class="font-medium text-blue-600 underline hover:no-underline"
                 >
                   {forum.name}
-                </a>
+                </A>
               </li>
             }
           })
