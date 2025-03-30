@@ -19,6 +19,7 @@ serde.workspace = true
 bson.workspace = true
 mongodb = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
+tracing.workspace = true
 
 [features]
 default = []

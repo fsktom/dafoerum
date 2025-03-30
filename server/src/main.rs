@@ -3,6 +3,7 @@ use axum::extract::FromRef;
 use leptos::logging::log;
 use leptos::prelude::*;
 use leptos_axum::{LeptosRoutes, generate_route_list};
+use tracing_subscriber::filter::{EnvFilter, LevelFilter};
 
 use mongodb::Client;
 
@@ -14,6 +15,11 @@ pub struct AppState {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let env = EnvFilter::builder()
+        .with_default_directive(LevelFilter::INFO.into())
+        .from_env_lossy();
+    tracing_subscriber::fmt().with_env_filter(env).init();
+
     let conf = get_configuration(None)?;
     let addr = conf.leptos_options.site_addr;
     let leptos_options = conf.leptos_options;
