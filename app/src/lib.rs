@@ -18,8 +18,8 @@ use leptos::logging;
 use leptos::prelude::*;
 use leptos_meta::{MetaTags, Stylesheet, Title, provide_meta_context};
 use leptos_router::{
-    StaticSegment,
-    components::{Route, Router, Routes, A},
+    StaticSegment ,
+    components::{Route, Router, Routes, ParentRoute, Outlet, A},
     hooks::use_location,
     path,
 };
@@ -42,6 +42,14 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
     }
 }
 
+/// View for when you do trailing slash mofo
+#[component]
+pub fn Faq() -> impl IntoView {
+    // because for some reason /latest/ etc otherwise cause db not found in context error
+    // i could redirect to og page but difficutl for e.g. /forum/:id :))))
+    view! { <p>"don't do this i hate you"</p> }
+}
+
 #[component]
 pub fn App() -> impl IntoView {
     // Provides context that manages stylesheets, titles, meta tags, etc.
@@ -61,9 +69,19 @@ pub fn App() -> impl IntoView {
           <div class="flex flex-col gap-4 items-center sm:items-center sm:w-2/3 w-9/11">
             <Routes fallback=|| "Page not found.".into_view()>
               <Route path=StaticSegment("") view=HomePage />
+
+              <Route path=StaticSegment("/latest/") view=Faq />
               <Route path=StaticSegment("/latest") view=Latest />
-              <Route path=StaticSegment("/forum") view=forum::Forums />
-              <Route path=path!("/forum/:id") view=forum::ForumOverview />
+
+              <ParentRoute path=StaticSegment("/forum") view=move || view! { <Outlet /> }>
+                <Route path=StaticSegment("/") view=Faq />
+                <Route path=path!(":id/") view=Faq />
+
+                <Route path=StaticSegment("") view=forum::Forums />
+                <Route path=path!(":id") view=forum::ForumOverview />
+              </ParentRoute>
+
+              <Route path=path!("/thread/:id/") view=Faq />
               <Route path=path!("/thread/:id") view=forum::ThreadOverview />
             </Routes>
           </div>
