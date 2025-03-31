@@ -131,6 +131,7 @@ impl CollectionName for Category {
 pub struct Forum {
     pub id: u32,
     pub name: String,
+    pub latest_thread_id: u32,
 }
 
 /// Represents a thread: it's part of a [`Forum`] and contains multiple [`Posts`][Post]
