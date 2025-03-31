@@ -6,9 +6,9 @@ use leptos::html::ol;
 use leptos::{logging, prelude::*};
 // use leptos_meta::Title;
 use leptos_router::{
+    components::A,
     hooks::{use_navigate, use_params},
     params::Params,
-    components::A,
 };
 
 /// Renders a list of all [`Forums`][Forum]
@@ -36,7 +36,6 @@ pub fn Forums() -> impl IntoView {
     };
 
     view! {
-      <h2 class="text-4xl font-bold">"Forums:"</h2>
       <Suspense fallback=move || {
         view! { <p>"Loading forums..."</p> }
       }>

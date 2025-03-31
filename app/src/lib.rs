@@ -18,8 +18,8 @@ use leptos::logging;
 use leptos::prelude::*;
 use leptos_meta::{MetaTags, Stylesheet, Title, provide_meta_context};
 use leptos_router::{
-    StaticSegment ,
-    components::{Route, Router, Routes, ParentRoute, Outlet, A},
+    StaticSegment,
+    components::{A, Outlet, ParentRoute, Route, Router, Routes},
     hooks::use_location,
     path,
 };
@@ -95,7 +95,7 @@ pub enum MatchPath {
     /// `/{path}` and `{path}`
     Full(&'static str),
     /// `/{path}*` amd `{path}*`
-    Start(&'static str)
+    Start(&'static str),
 }
 impl MatchPath {
     /// Checks if [`self`] matches the given `path`
@@ -114,8 +114,8 @@ impl MatchPath {
     /// ```
     pub fn matches(&self, path: &str) -> bool {
         match self {
-            Self::Full(p) => path == *p ||format!("/{p}") == path,
-            Self::Start(p) => path.starts_with(p) || path.starts_with(&format!("/{p}"))
+            Self::Full(p) => path == *p || format!("/{p}") == path,
+            Self::Start(p) => path.starts_with(p) || path.starts_with(&format!("/{p}")),
         }
     }
 }
@@ -127,8 +127,11 @@ fn NavBar() -> impl IntoView {
 
     view! {
       // hide on mobile - TBD: mobile navbar hamburger
-      <nav class="hidden justify-center w-full h-20 bg-purple-700 sm:flex shadow-[0_3px_0_theme(colors.purple.300)]">
+      <nav class="hidden justify-around w-full h-20 bg-purple-700 sm:flex shadow-[0_3px_0_theme(colors.purple.300)]">
         // solid light purple "shadow" to seperate nav from main
+        <div class="hidden justify-center items-center w-20 text-lg font-bold text-purple-50 uppercase md:flex md:text-xl lg:w-40 lg:text-2xl font-display md:w-30">
+          "Dafoerum"
+        </div>
         <div class="flex flex-wrap justify-between items-center p-4 max-w-screen-xl">
           <ul class="flex flex-row gap-5 font-medium rounded-lg border-0">
             <NavLink href="/" matching=&[MatchPath::Full("")] content="Home" pathname=path />
@@ -152,6 +155,7 @@ fn NavBar() -> impl IntoView {
             />
           </ul>
         </div>
+        <div class="hidden invisible md:block lg:w-40 md:w-30"></div>
       </nav>
     }
 }
@@ -168,9 +172,7 @@ fn NavLink(
     /// Gotten by [`use_location`]
     pathname: Memo<String>,
 ) -> impl IntoView {
-    let is_current = move || {
-        matching.iter().any(|p| p.matches(&pathname()))
-    };
+    let is_current = move || matching.iter().any(|p| p.matches(&pathname()));
 
     // doing it witha NodeRef and checking aria-working only works on full reload, and not reactive for some reason...
     // also <A> doesn't work well with these conditional classes...
@@ -237,24 +239,26 @@ fn Latest() -> impl IntoView {
     };
 
     // https://flowbite.com/icons/
-    let refresh_icon_view = move || view! {
-      <svg
-        class="w-6 h-6 text-gray-800 dark:text-white"
-        aria-hidden="true"
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        fill="none"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke="currentColor"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M17.651 7.65a7.131 7.131 0 0 0-12.68 3.15M18.001 4v4h-4m-7.652 8.35a7.13 7.13 0 0 0 12.68-3.15M6 20v-4h4"
-        />
-      </svg>
+    let refresh_icon_view = move || {
+        view! {
+          <svg
+            class="w-6 h-6 text-gray-800 dark:text-white"
+            aria-hidden="true"
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M17.651 7.65a7.131 7.131 0 0 0-12.68 3.15M18.001 4v4h-4m-7.652 8.35a7.13 7.13 0 0 0 12.68-3.15M6 20v-4h4"
+            />
+          </svg>
+        }
     };
 
     view! {
