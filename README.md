@@ -53,3 +53,7 @@ But sounds fun I think... or at least the little bit of fun/distraction from oth
 
 For the forum aspect, maybe also take some inspiration from more modern takes like <https://users.rust-lang.org/>
 but combine it with the old-school and clear way like the AB Forum
+
+## Useful Links
+
+- <https://tailwindcss.com/docs/responsive-design>

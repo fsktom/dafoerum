@@ -4,7 +4,7 @@ use api::{ApiError, Category, Forum, Post, Thread};
 use leptos::either::{Either, EitherOf3};
 use leptos::html::ol;
 use leptos::{logging, prelude::*};
-// use leptos_meta::Title;
+use leptos_meta::Title;
 use leptos_router::{
     components::A,
     hooks::{use_navigate, use_params},
@@ -36,6 +36,7 @@ pub fn Forums() -> impl IntoView {
     };
 
     view! {
+      <Title text="Forums | Dafoerum" />
       <Suspense fallback=move || {
         view! { <p>"Loading forums..."</p> }
       }>
@@ -51,26 +52,28 @@ pub fn Forums() -> impl IntoView {
 #[component]
 fn CategoryItem(category: Category) -> impl IntoView {
     view! {
-      <h2 class="text-2xl font-bold">{category.name.clone()}</h2>
-      <ul class="mb-2 text-lg font-semibold text-gray-900">
-        {category
-          .forums
-          .into_iter()
-          .map(|forum: Forum| {
-            view! {
-              <li class="space-y-1 max-w-md list-disc list-inside text-gray-500">
-                <A
-                  href=forum.id.to_string()
-                  {..}
-                  class="font-medium text-blue-600 underline hover:no-underline"
-                >
-                  {forum.name}
-                </A>
-              </li>
-            }
-          })
-          .collect_view()}
-      </ul>
+      <section class="p-2 max-w-xl bg-purple-200 rounded-2xl md:w-3/4 lg:w-2/3 w-9/11">
+        <h2 class="text-2xl font-bold font-display text-purple-950">{category.name.clone()}</h2>
+        <ul class="mb-2 text-lg font-semibold text-gray-900">
+          {category
+            .forums
+            .into_iter()
+            .map(|forum: Forum| {
+              view! {
+                <li class="space-y-1 max-w-md list-disc list-inside text-gray-500">
+                  <A
+                    href=forum.id.to_string()
+                    {..}
+                    class="font-medium text-blue-600 underline hover:no-underline"
+                  >
+                    {forum.name}
+                  </A>
+                </li>
+              }
+            })
+            .collect_view()}
+        </ul>
+      </section>
     }
 }
 
@@ -83,6 +86,7 @@ struct ForumParams {
 /// Renders the thread list of a [`Forum`]
 #[component]
 pub fn ForumOverview() -> impl IntoView {
+    let title_format = |text| format!("{text} - Forums | Dafoerum");
     let params = use_params::<ForumParams>();
     let Ok(ForumParams { id }) = params.get_untracked() else {
         return Either::Left(view! {
@@ -113,6 +117,7 @@ pub fn ForumOverview() -> impl IntoView {
             }
         };
         EitherOf3::C(view! {
+          <Title text=forum.name.to_string() formatter=title_format />
           <nav class="self-start">
             <a href="/" class="font-medium text-blue-600 underline hover:no-underline">
               "Forum"

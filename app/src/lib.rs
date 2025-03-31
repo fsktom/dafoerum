@@ -35,7 +35,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
           <HydrationScripts options />
           <MetaTags />
         </head>
-        <body class="overflow-y-scroll bg-purple-50 h-svh">
+        <body class="overflow-y-scroll bg-purple-100 h-svh">
           <App />
         </body>
       </html>
@@ -55,11 +55,9 @@ pub fn App() -> impl IntoView {
     // Provides context that manages stylesheets, titles, meta tags, etc.
     provide_meta_context();
 
-    let title_format = |text| format!("{text} - Dafoerum");
-
     view! {
       <Stylesheet id="leptos" href="/pkg/start-axum-workspace.css" />
-      <Title text="Dafoerum" formatter=title_format />
+      <Title text="Dafoerum" />
 
       <Router>
         <header>
