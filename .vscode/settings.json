@@ -3,11 +3,12 @@
   "rust-analyzer.rustfmt.overrideCommand": [
     "leptosfmt",
     "--stdin",
-    "--rustfmt"
+    "--rustfmt",
+    "--rustfmt-args",
+    "+nightly"
   ],
   "rust-analyzer.procMacro.ignored": { "leptos_macro": ["server"] },
   // https://book.leptos.dev/getting_started/leptos_dx.html
-  "rust-analyzer.cargo.features": ["ssr, hydrate"],
   // https://github.com/tailwindlabs/tailwindcss-intellisense/issues/546#issuecomment-1121102708
   "tailwindCSS.includeLanguages": {
     "rust": "html"

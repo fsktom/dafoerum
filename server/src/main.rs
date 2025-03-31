@@ -1,6 +1,5 @@
 use axum::Router;
 use axum::extract::FromRef;
-use leptos::logging::log;
 use leptos::prelude::*;
 use leptos_axum::{LeptosRoutes, generate_route_list};
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};
@@ -44,8 +43,8 @@ async fn main() -> anyhow::Result<()> {
         ))
         .with_state(state);
 
-    log!("listening on http://{}", &addr);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
+    tracing::info!("listening on http://localhost:{}", addr.port());
     axum::serve(listener, app.into_make_service()).await?;
 
     Ok(())
