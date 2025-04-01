@@ -379,6 +379,13 @@ pub async fn create_post(thread_id: u32, content: String) -> Result<(), ApiError
     Ok(())
 }
 
+/// Returns the number of [`Thread`]s in the given [`Forum`]
+#[server]
+pub async fn count_threads_of(forum_id: u32) -> Result<u64, ApiError> {
+    let db = helper::get_db()?;
+    helper::count_threads_of(forum_id, db).await
+}
+
 /// Returns the most recently created [`Post`] with the [`Thread`] it's in
 /// of the given `thread_id`
 #[server]

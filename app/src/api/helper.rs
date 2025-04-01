@@ -110,3 +110,33 @@ pub async fn get_forum(forum_id: u32, db: Database) -> Result<(Forum, String), A
 
     Ok((forum, category.name))
 }
+
+/// Queries the databse for the amount of [`Thread`]s for the given `forum_id`
+///
+/// Doesn't check for [`Forum`] existence, will probably return `0` for such
+///
+/// # Errors
+///
+/// * [`ApiError::Db`] if the db connection fails in any way
+pub async fn count_threads_of(forum_id: u32, db: Database) -> Result<u64, ApiError> {
+    let thread_col = Thread::collection(&db);
+    let count = thread_col
+        .count_documents(bson::doc! {"forum_id": forum_id})
+        .await?;
+    Ok(count)
+}
+
+/// Queries the databse for the amount of [`Post`]s for the given `thread_id`
+///
+/// Doesn't check for [`Thread`] existence, will probably return `0` for such
+///
+/// # Errors
+///
+/// * [`ApiError::Db`] if the db connection fails in any way
+pub async fn count_posts_of(thread_id: u32, db: Database) -> Result<u64, ApiError> {
+    let post_col = Post::collection(&db);
+    let count = post_col
+        .count_documents(bson::doc! {"thread_id": thread_id})
+        .await?;
+    Ok(count)
+}

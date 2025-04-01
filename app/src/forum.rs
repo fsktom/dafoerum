@@ -75,6 +75,8 @@ fn ForumRow(forum: Forum) -> impl IntoView {
         move || (),
         move |()| api::get_latest_post_and_thread(forum.latest_thread_id),
     );
+    let thread_count = Resource::new(move || (), move |()| api::count_threads_of(forum.id));
+
     let latest_thread_summary_view = move || {
         // not doing Suspend, because doing it like this will block the above <Suspense> until this is loaded too
         let Some(res) = latest_thread.get() else {
@@ -105,6 +107,24 @@ fn ForumRow(forum: Forum) -> impl IntoView {
         Either::Right(view)
     };
 
+    let thread_count_view = move || {
+        // not doing Suspend, because doing it like this will block the above <Suspense> until this is loaded too
+        let Some(res) = thread_count.get() else {
+            // init
+            return Either::Left(view! { <p>"BaNaNa"</p> });
+        };
+        let thread_count = match res {
+            Ok(thread_count) => thread_count,
+            Err(err) => {
+                logging::log!("{err:?} - {err}");
+                return Either::Left(view! { <p>"BaNaNa"</p> });
+            }
+        };
+
+        let view = view! { <p>{thread_count}" threads"</p> };
+        Either::Right(view)
+    };
+
     view! {
       <Suspense>
         <tr class="text-purple-900">
@@ -117,6 +137,7 @@ fn ForumRow(forum: Forum) -> impl IntoView {
           <td class="overflow-hidden whitespace-nowrap overflow-ellipsis">
             {latest_thread_summary_view}
           </td>
+          <td>{thread_count_view}</td>
         </tr>
       </Suspense>
     }
