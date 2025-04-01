@@ -4,7 +4,7 @@
 //! are also API endpoints (`#[server]`)
 
 use super::{
-    ApiError, Category, Collection, Counter, Database, Forum, GetCollection, Thread, bson,
+    ApiError, Category, Collection, Counter, Database, Forum, GetCollection, Post, Thread, bson,
 };
 use leptos::prelude::*;
 
@@ -44,6 +44,22 @@ pub async fn get_and_increment_id_of(
         .expect("counter should exist in db")
         .sequence;
     Ok(current_id + 1)
+}
+
+/// Queries database to check if a [`Post`] with the given `post_id` exists
+/// and returns it.
+///
+/// # Errors
+///
+/// * [`ApiError::NotFound`] if the `post_id` is not in the db
+/// * [`ApiError::Db`] if the db connection fails in any way
+pub async fn get_post(post_id: u32, db: Database) -> Result<Post, ApiError> {
+    let post_col = Post::collection(&db);
+    let post = post_col.find_one(bson::doc! {"id": post_id}).await?;
+
+    // invariant: if post is saved in database, the thread it is in must also exist
+
+    post.ok_or(ApiError::NotFound("post".into(), post_id))
 }
 
 /// Queries database to check if a [`Thread`] with the given `thread_id` exists

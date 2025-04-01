@@ -24,6 +24,22 @@ use leptos_router::{
     path,
 };
 
+pub trait TimeUtils {
+    /// Pretty prints how long ago given date was from now
+    fn ago(self) -> String;
+}
+impl TimeUtils for jiff::Timestamp {
+    fn ago(self) -> String {
+        let now = jiff::Timestamp::now();
+        let diff = now - self;
+        // oh damn i get it. different api from chrono but i like it
+        // also it's natural i dont need to read the docs just follow RA/LSP
+        // and read first sentence of method (e.g. tried get_minutes() but docs said i wanted total)
+        let minutes = diff.total(jiff::Unit::Minute).expect("i dan faqd up");
+        format!("{minutes:.1}")
+    }
+}
+
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     view! {
       <!DOCTYPE html>

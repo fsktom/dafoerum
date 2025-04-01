@@ -1,3 +1,4 @@
+use crate::TimeUtils;
 use crate::api;
 use api::{ApiError, Category, Forum, Post, Thread};
 
@@ -54,7 +55,7 @@ fn CategoryItem(category: Category) -> impl IntoView {
     view! {
       <section class="p-4 mb-2 max-w-xl bg-purple-200 md:w-3/4 lg:w-2/3 shadow-[0_3px_0_theme(colors.purple.300)] rounded-xs w-9/11">
         <h2 class="text-2xl font-bold font-display text-purple-950">{category.name.clone()}</h2>
-        <table class="table-auto">
+        <table class="w-full table-fixed">
           <tbody>
             {category
               .forums
@@ -72,16 +73,16 @@ fn CategoryItem(category: Category) -> impl IntoView {
 fn ForumRow(forum: Forum) -> impl IntoView {
     let latest_thread = Resource::new(
         move || (),
-        move |()| api::get_thread(forum.latest_thread_id),
+        move |()| api::get_latest_post_and_thread(forum.latest_thread_id),
     );
     let latest_thread_summary_view = move || {
         // not doing Suspend, because doing it like this will block the above <Suspense> until this is loaded too
-        let Some(thread) = latest_thread.get() else {
+        let Some(res) = latest_thread.get() else {
             // init
             return Either::Left(view! { <p>"Thread couldn't be loaded!"</p> });
         };
-        let thread = match thread {
-            Ok(thread) => thread,
+        let (post, thread) = match res {
+            Ok(res) => res,
             Err(err) => {
                 logging::log!("{err:?} - {err}");
                 return Either::Left(view! { <p>"Thread couldn't be loaded!"</p> });
@@ -89,9 +90,17 @@ fn ForumRow(forum: Forum) -> impl IntoView {
         };
 
         let view = view! {
-          <A href=format!("/thread/{}", thread.id) {..} class="underline hover:no-underline">
-            {thread.subject}
-          </A>
+          <div>
+            <A href=format!("/thread/{}", thread.id) {..} class="underline hover:no-underline">
+              {thread.subject}
+            </A>
+            <p>
+              "Last post "
+              <time datetime=post
+                .created_at
+                .to_string()>{post.created_at.ago()}" minutes ago"</time>
+            </p>
+          </div>
         };
         Either::Right(view)
     };
@@ -105,7 +114,9 @@ fn ForumRow(forum: Forum) -> impl IntoView {
             </A>
           </th>
 
-          <td>{latest_thread_summary_view}</td>
+          <td class="overflow-hidden whitespace-nowrap overflow-ellipsis">
+            {latest_thread_summary_view}
+          </td>
         </tr>
       </Suspense>
     }

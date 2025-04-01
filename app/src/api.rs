@@ -143,6 +143,7 @@ pub struct Thread {
     pub origin_post_id: u32,
     pub forum_id: u32,
     pub subject: String,
+    pub latest_post_id: u32,
 }
 impl CollectionName for Thread {
     fn collection_name() -> &'static str {
@@ -276,8 +277,18 @@ pub async fn create_thread(
         origin_post_id: post_id,
         subject,
         forum_id,
+        latest_post_id: post_id,
     };
     thread_col.insert_one(&new_thread).await?;
+
+    let category_col = Category::collection(&db);
+    // thx gippity?
+    let _ = category_col
+        .update_one(
+            bson::doc! {"forums.id": forum_id},
+            bson::doc! {"$set": {"forums.$.latest_thread_id": thread_id}},
+        )
+        .await?;
 
     Ok(thread_id)
 }
@@ -333,7 +344,7 @@ pub async fn create_post(thread_id: u32, content: String) -> Result<(), ApiError
 
     let db = helper::get_db()?;
 
-    let _ = helper::get_thread(thread_id, db.clone()).await?;
+    let thread = helper::get_thread(thread_id, db.clone()).await?;
 
     let counter_col = Counter::collection(&db);
     let id = helper::get_and_increment_id_of("post", counter_col).await?;
@@ -349,7 +360,35 @@ pub async fn create_post(thread_id: u32, content: String) -> Result<(), ApiError
 
     post_col.insert_one(&new_post).await?;
 
+    let thread_col = Thread::collection(&db);
+    let _ = thread_col
+        .update_one(
+            bson::doc! {"id": thread_id},
+            bson::doc! {"$set": {"latest_post_id": id}},
+        )
+        .await?;
+
+    let category_col = Category::collection(&db);
+    let _ = category_col
+        .update_one(
+            bson::doc! {"forums.id": thread.forum_id},
+            bson::doc! {"$set": {"forums.$.latest_thread_id": thread_id}},
+        )
+        .await?;
+
     Ok(())
+}
+
+/// Returns the most recently created [`Post`] with the [`Thread`] it's in
+/// of the given `thread_id`
+#[server]
+pub async fn get_latest_post_and_thread(thread_id: u32) -> Result<(Post, Thread), ApiError> {
+    let db = helper::get_db()?;
+
+    let thread = helper::get_thread(thread_id, db.clone()).await?;
+    let post = helper::get_post(thread.latest_post_id, db.clone()).await?;
+
+    Ok((post, thread))
 }
 
 pub mod jiff_timestamp_as_bson_datetime {
