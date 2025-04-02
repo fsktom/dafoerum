@@ -53,7 +53,7 @@ pub fn Forums() -> impl IntoView {
 #[component]
 fn CategoryItem(category: Category) -> impl IntoView {
     view! {
-      <section class="p-4 mb-2 max-w-xl bg-purple-200 md:w-3/4 lg:w-2/3 shadow-[0_3px_0_theme(colors.purple.300)] rounded-xs w-9/11">
+      <section class="p-4 mb-2 bg-purple-200 shadow-[0_3px_0_theme(colors.purple.300)] rounded-xs w-9/10 sm:8/10">
         <h2 class="text-2xl font-bold font-display text-purple-950">{category.name.clone()}</h2>
         <table class="w-full table-fixed">
           <tbody>
@@ -92,17 +92,17 @@ fn ForumRow(forum: Forum) -> impl IntoView {
         };
 
         let view = view! {
-          <div>
-            <A href=format!("/thread/{}", thread.id) {..} class="underline hover:no-underline">
-              {thread.subject}
-            </A>
-            <p>
-              "Last post "
-              <time datetime=post
-                .created_at
-                .to_string()>{post.created_at.ago()}" minutes ago"</time>
-            </p>
-          </div>
+          <A
+            href=format!("/thread/{}", thread.id)
+            {..}
+            class="block overflow-hidden w-full underline whitespace-nowrap hover:no-underline overflow-ellipsis"
+          >
+            {thread.subject}
+          </A>
+          <p>
+            "Last post "
+            <time datetime=post.created_at.to_string()>{post.created_at.ago()}" minutes ago"</time>
+          </p>
         };
         Either::Right(view)
     };
@@ -128,16 +128,14 @@ fn ForumRow(forum: Forum) -> impl IntoView {
     view! {
       <Suspense>
         <tr class="text-purple-900">
-          <th>
+          <th class="w-20">
             <A href=forum.id.to_string() {..} class="font-medium underline hover:no-underline">
               {forum.name}
             </A>
           </th>
 
-          <td class="overflow-hidden whitespace-nowrap overflow-ellipsis">
-            {latest_thread_summary_view}
-          </td>
-          <td>{thread_count_view}</td>
+          <td class="w-40">{latest_thread_summary_view}</td>
+          <td class="w-10">{thread_count_view}</td>
         </tr>
       </Suspense>
     }

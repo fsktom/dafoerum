@@ -80,7 +80,7 @@ pub fn App() -> impl IntoView {
           <NavBar />
         </header>
         <main class="flex flex-col items-center py-8">
-          <div class="flex flex-col gap-4 items-center sm:items-center sm:w-2/3 w-9/11">
+          <div class="flex flex-col gap-4 items-center max-w-4xl sm:items-center md:w-3/4 2xl:w-2/3 w-9/11 sm:w-8/10 lg:w-8/11 xl:w-7/10">
             <Routes fallback=|| "Page not found.".into_view()>
               <Route path=StaticSegment("") view=HomePage />
 
