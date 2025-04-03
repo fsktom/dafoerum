@@ -111,19 +111,32 @@ pub async fn get_forum(forum_id: u32, db: Database) -> Result<(Forum, String), A
     Ok((forum, category.name))
 }
 
-/// Queries the databse for the amount of [`Thread`]s for the given `forum_id`
+/// Queries the databse for the amount of [`Thread`]s and [`Post`]s for the given `forum_id`
 ///
 /// Doesn't check for [`Forum`] existence, will probably return `0` for such
+///
+/// First value is the [`Thread`] count, second value is the [`Post`] count
 ///
 /// # Errors
 ///
 /// * [`ApiError::Db`] if the db connection fails in any way
-pub async fn count_threads_of(forum_id: u32, db: Database) -> Result<u64, ApiError> {
+pub async fn count_threads_and_posts_of_forum(
+    forum_id: u32,
+    db: Database,
+) -> Result<(u64, u64), ApiError> {
     let thread_col = Thread::collection(&db);
-    let count = thread_col
-        .count_documents(bson::doc! {"forum_id": forum_id})
+    let mut thread_ids = vec![];
+    let mut threads_cursor = thread_col.find(bson::doc! {"forum_id":forum_id}).await?;
+    while threads_cursor.advance().await? {
+        thread_ids.push(threads_cursor.deserialize_current()?.id);
+    }
+
+    let post_col = Post::collection(&db);
+    let post_count = post_col
+        .count_documents(bson::doc! {"thread_id": {"$in": &thread_ids}})
         .await?;
-    Ok(count)
+
+    Ok((thread_ids.len() as u64, post_count))
 }
 
 /// Queries the databse for the amount of [`Post`]s for the given `thread_id`

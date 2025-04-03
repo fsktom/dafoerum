@@ -56,6 +56,22 @@ fn CategoryItem(category: Category) -> impl IntoView {
       <section class="p-4 mb-2 bg-purple-200 shadow-[0_3px_0_theme(colors.purple.300)] rounded-xs w-9/10 sm:8/10">
         <h2 class="text-2xl font-bold font-display text-purple-950">{category.name.clone()}</h2>
         <table class="w-full table-fixed">
+          <thead>
+            <tr>
+              <th scope="col" class="w-20">
+                "Forum"
+              </th>
+              <th scope="col" class="w-40">
+                "Last activity"
+              </th>
+              <th scope="col" class="w-10">
+                "# threads"
+              </th>
+              <th scope="col" class="w-10">
+                "# posts"
+              </th>
+            </tr>
+          </thead>
           <tbody>
             {category
               .forums
@@ -71,20 +87,23 @@ fn CategoryItem(category: Category) -> impl IntoView {
 /// Renders a table row containing info on a [`Forum`]
 #[component]
 fn ForumRow(forum: Forum) -> impl IntoView {
-    let latest_thread = Resource::new(
+    let latest_thread_res = Resource::new(
         move || (),
         move |()| api::get_latest_post_and_thread(forum.latest_thread_id),
     );
-    let thread_count = Resource::new(move || (), move |()| api::count_threads_of(forum.id));
+    let thread_n_post_count_res = Resource::new(
+        move || (),
+        move |()| api::count_threads_and_posts_of_forum(forum.id),
+    );
 
     let latest_thread_summary_view = move || {
         // not doing Suspend, because doing it like this will block the above <Suspense> until this is loaded too
-        let Some(res) = latest_thread.get() else {
+        let Some(result) = latest_thread_res.get() else {
             // init
             return Either::Left(view! { <p>"Thread couldn't be loaded!"</p> });
         };
-        let (post, thread) = match res {
-            Ok(res) => res,
+        let (post, thread) = match result {
+            Ok(counts) => counts,
             Err(err) => {
                 logging::log!("{err:?} - {err}");
                 return Either::Left(view! { <p>"Thread couldn't be loaded!"</p> });
@@ -107,35 +126,41 @@ fn ForumRow(forum: Forum) -> impl IntoView {
         Either::Right(view)
     };
 
-    let thread_count_view = move || {
-        // not doing Suspend, because doing it like this will block the above <Suspense> until this is loaded too
-        let Some(res) = thread_count.get() else {
+    let (thread_count, set_thread_count) = signal(0);
+    let (post_count, set_post_count) = signal(0);
+
+    Effect::new(move |_| {
+        let Some(res) = thread_n_post_count_res.get() else {
             // init
-            return Either::Left(view! { <p>"BaNaNa"</p> });
+            return;
         };
-        let thread_count = match res {
-            Ok(thread_count) => thread_count,
+        let (threads, posts) = match res {
+            Ok(counts) => counts,
             Err(err) => {
                 logging::log!("{err:?} - {err}");
-                return Either::Left(view! { <p>"BaNaNa"</p> });
+                return;
             }
         };
-
-        let view = view! { <p>{thread_count}" threads"</p> };
-        Either::Right(view)
-    };
+        set_thread_count(threads);
+        set_post_count(posts);
+    });
 
     view! {
       <Suspense>
         <tr class="text-purple-900">
-          <th class="w-20">
+          <th scope="row">
             <A href=forum.id.to_string() {..} class="font-medium underline hover:no-underline">
               {forum.name}
             </A>
           </th>
 
-          <td class="w-40">{latest_thread_summary_view}</td>
-          <td class="w-10">{thread_count_view}</td>
+          <td>{latest_thread_summary_view}</td>
+          <td>
+            <p>{move || thread_count()}</p>
+          </td>
+          <td>
+            <p>{move || post_count()}</p>
+          </td>
         </tr>
       </Suspense>
     }
