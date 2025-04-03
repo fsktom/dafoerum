@@ -126,7 +126,7 @@ pub async fn count_threads_and_posts_of_forum(
 ) -> Result<(u64, u64), ApiError> {
     let thread_col = Thread::collection(&db);
     let mut thread_ids = vec![];
-    let mut threads_cursor = thread_col.find(bson::doc! {"forum_id":forum_id}).await?;
+    let mut threads_cursor = thread_col.find(bson::doc! {"forum_id": forum_id}).await?;
     while threads_cursor.advance().await? {
         thread_ids.push(threads_cursor.deserialize_current()?.id);
     }

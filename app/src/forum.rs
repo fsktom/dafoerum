@@ -126,24 +126,21 @@ fn ForumRow(forum: Forum) -> impl IntoView {
         Either::Right(view)
     };
 
-    let (thread_count, set_thread_count) = signal(0);
-    let (post_count, set_post_count) = signal(0);
-
-    Effect::new(move |_| {
+    let counts = move || {
         let Some(res) = thread_n_post_count_res.get() else {
             // init
-            return;
+            return (0, 0);
         };
-        let (threads, posts) = match res {
+        match res {
             Ok(counts) => counts,
             Err(err) => {
                 logging::log!("{err:?} - {err}");
-                return;
+                (0, 0)
             }
-        };
-        set_thread_count(threads);
-        set_post_count(posts);
-    });
+        }
+    };
+    let thread_count = move || counts().0;
+    let post_count = move || counts().1;
 
     view! {
       <Suspense>
