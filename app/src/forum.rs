@@ -97,69 +97,79 @@ fn ForumRow(forum: Forum) -> impl IntoView {
     );
 
     let latest_thread_summary_view = move || {
-        // not doing Suspend, because doing it like this will block the above <Suspense> until this is loaded too
-        let Some(result) = latest_thread_res.get() else {
-            // init
-            return Either::Left(view! { <p>"Thread couldn't be loaded!"</p> });
-        };
-        let (post, thread) = match result {
-            Ok(counts) => counts,
-            Err(err) => {
-                logging::log!("{err:?} - {err}");
-                return Either::Left(view! { <p>"Thread couldn't be loaded!"</p> });
-            }
-        };
+        Suspend::new(async move {
+            let result = latest_thread_res;
+            let (post, thread) = match result.await {
+                Ok(counts) => counts,
+                Err(err) => {
+                    logging::log!("{err:?} - {err}");
+                    return Either::Left(view! { <p>"Thread couldn't be loaded!"</p> });
+                }
+            };
 
-        let view = view! {
-          <A
-            href=format!("/thread/{}", thread.id)
-            {..}
-            class="block overflow-hidden w-full underline whitespace-nowrap hover:no-underline overflow-ellipsis"
-          >
-            {thread.subject}
-          </A>
-          <p>
-            "Last post "
-            <time datetime=post.created_at.to_string()>{post.created_at.ago()}" minutes ago"</time>
-          </p>
-        };
-        Either::Right(view)
+            let view = view! {
+              <A
+                href=format!("/thread/{}", thread.id)
+                {..}
+                class="block overflow-hidden w-full underline whitespace-nowrap hover:no-underline overflow-ellipsis"
+              >
+                {thread.subject}
+              </A>
+              <p>
+                "Last post "
+                <time datetime=post
+                  .created_at
+                  .to_string()>{post.created_at.ago()}" minutes ago"</time>
+              </p>
+            };
+            Either::Right(view)
+        })
     };
 
-    let counts = move || {
-        let Some(res) = thread_n_post_count_res.get() else {
-            // init
-            return (0, 0);
-        };
-        match res {
-            Ok(counts) => counts,
-            Err(err) => {
-                logging::log!("{err:?} - {err}");
-                (0, 0)
+    let counts = move |thread: bool| {
+        Suspend::new(async move {
+            match thread_n_post_count_res.await {
+                Ok(counts) => {
+                    if thread {
+                        counts.0
+                    } else {
+                        counts.1
+                    }
+                }
+                Err(err) => {
+                    logging::log!("{err:?} - {err}");
+                    0
+                }
             }
-        }
+        })
     };
-    let thread_count = move || counts().0;
-    let post_count = move || counts().1;
+    // yeah I know nowo it calls the Resource twice?... I'm going crazy
+    // others way to make it work like I want don't work
+    let thread_count = move || counts(true);
+    let post_count = move || counts(false);
 
     view! {
-      <Suspense>
-        <tr class="text-purple-900">
-          <th scope="row">
-            <A href=forum.id.to_string() {..} class="font-medium underline hover:no-underline">
-              {forum.name}
-            </A>
-          </th>
+      <tr class="text-purple-900">
+        <th scope="row">
+          <A href=forum.id.to_string() {..} class="font-medium underline hover:no-underline">
+            {forum.name}
+          </A>
+        </th>
 
-          <td>{latest_thread_summary_view}</td>
-          <td>
-            <p>{move || thread_count()}</p>
-          </td>
-          <td>
-            <p>{move || post_count()}</p>
-          </td>
-        </tr>
-      </Suspense>
+        <td>
+          <Suspense>{latest_thread_summary_view}</Suspense>
+        </td>
+        <td>
+          <p>
+            <Suspense>{thread_count}</Suspense>
+          </p>
+        </td>
+        <td>
+          <p>
+            <Suspense>{post_count}</Suspense>
+          </p>
+        </td>
+      </tr>
     }
 }
 

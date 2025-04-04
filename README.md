@@ -23,7 +23,7 @@ You have to have installed:
 ### Dev Build
 
 ```sh
-LEPTOS_TAILWIND_VERSION=v4.1.1 cargo leptos watch --hot-reload
+LEPTOS_TAILWIND_VERSION=v4.1.2 cargo leptos watch --hot-reload
 ```
 
 ### WSL Port Forwarding

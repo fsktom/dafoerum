@@ -385,6 +385,7 @@ pub async fn create_post(thread_id: u32, content: String) -> Result<(), ApiError
 #[server]
 pub async fn count_threads_and_posts_of_forum(forum_id: u32) -> Result<(u64, u64), ApiError> {
     let db = helper::get_db()?;
+    // tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
     helper::count_threads_and_posts_of_forum(forum_id, db).await
 }
 
