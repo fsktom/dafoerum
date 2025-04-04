@@ -2,7 +2,8 @@
   // https://github.com/bram209/leptosfmt#configure-ra
   "rust-analyzer.rustfmt.overrideCommand": [
     "leptosfmt",
-    // "--experimental-tailwind", - doesn't seem to work?
+    "--experimental-tailwind",
+    // ^ doesn't seem to do anything? already implemented? maybe use rustywind for sorting attr:class etc?
     "--stdin",
     "--rustfmt",
     "--rustfmt-args",

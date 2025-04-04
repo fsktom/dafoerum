@@ -341,7 +341,7 @@ pub fn Threads(forum_id: u32) -> impl IntoView {
         </Show>
         <ActionForm
           action=create_thread
-          attr:class="max-w-md w-full mb-4 border border-gray-200 rounded-lg bg-gray-50"
+          attr:class="mb-4 w-full max-w-md bg-gray-50 rounded-lg border border-gray-200"
         >
           // I hope there's a better way to do this...
           <input class="hidden" name="forum_id" value=forum_id />
@@ -527,7 +527,7 @@ fn Posts(thread_id: u32) -> impl IntoView {
             ev.prevent_default();
           }
         }
-        attr:class="max-w-md w-full mb-4 border border-gray-200 rounded-lg bg-gray-50"
+        attr:class="mb-4 w-full max-w-md bg-gray-50 rounded-lg border border-gray-200"
       >
         // I hope there's a better way to do this...
         <input class="hidden" name="thread_id" value=thread_id />
