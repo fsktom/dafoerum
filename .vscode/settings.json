@@ -2,6 +2,7 @@
   // https://github.com/bram209/leptosfmt#configure-ra
   "rust-analyzer.rustfmt.overrideCommand": [
     "leptosfmt",
+    // "--experimental-tailwind", - doesn't seem to work?
     "--stdin",
     "--rustfmt",
     "--rustfmt-args",

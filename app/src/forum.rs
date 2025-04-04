@@ -64,11 +64,8 @@ fn CategoryItem(category: Category) -> impl IntoView {
               <th scope="col" class="w-40">
                 "Last activity"
               </th>
-              <th scope="col" class="w-10">
-                "# threads"
-              </th>
-              <th scope="col" class="w-10">
-                "# posts"
+              <th scope="col" class="w-15">
+                "#"
               </th>
             </tr>
           </thead>
@@ -126,48 +123,37 @@ fn ForumRow(forum: Forum) -> impl IntoView {
         })
     };
 
-    let counts = move |thread: bool| {
+    let counts_view = move || {
         Suspend::new(async move {
-            match thread_n_post_count_res.await {
-                Ok(counts) => {
-                    if thread {
-                        counts.0
-                    } else {
-                        counts.1
-                    }
-                }
+            let (thread_count, post_count) = match thread_n_post_count_res.await {
+                Ok(counts) => counts,
                 Err(err) => {
                     logging::log!("{err:?} - {err}");
-                    0
+                    return Either::Left(view! { <p>{err.to_string()}</p> });
                 }
-            }
+            };
+
+            let view = view! {
+              <p>"Threads: "<span class="font-medium">{thread_count}</span></p>
+              <p>"Posts: "<span class="font-medium">{post_count}</span></p>
+            };
+            Either::Right(view)
         })
     };
-    // yeah I know nowo it calls the Resource twice?... I'm going crazy
-    // others way to make it work like I want don't work
-    let thread_count = move || counts(true);
-    let post_count = move || counts(false);
 
     view! {
-      <tr class="text-purple-900">
-        <th scope="row">
-          <A href=forum.id.to_string() {..} class="font-medium underline hover:no-underline">
+      <tr class="text-purple-900 not-last:border-dotted not-last:border-purple-300 not-last:border-b-4">
+        <th scope="row" class="text-lg">
+          <A href=forum.id.to_string() {..} class="font-bold underline hover:no-underline">
             {forum.name}
           </A>
         </th>
 
-        <td>
+        <td class="py-2 leading-5">
           <Suspense>{latest_thread_summary_view}</Suspense>
         </td>
-        <td>
-          <p>
-            <Suspense>{thread_count}</Suspense>
-          </p>
-        </td>
-        <td>
-          <p>
-            <Suspense>{post_count}</Suspense>
-          </p>
+        <td class="py-2 leading-5">
+          <Suspense fallback=move || "\u{2026}".into_view()>{counts_view}</Suspense>
         </td>
       </tr>
     }
