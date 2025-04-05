@@ -53,7 +53,10 @@ pub fn Forums() -> impl IntoView {
 #[component]
 fn CategoryItem(category: Category) -> impl IntoView {
     view! {
-      <section class="p-4 mb-2 bg-purple-200 shadow-[0_3px_0_theme(colors.purple.300)] rounded-xs w-9/10 sm:8/10">
+      <section
+        id=clean_name_for_id(&category.name)
+        class="p-4 mb-2 bg-purple-200 shadow-[0_3px_0_theme(colors.purple.300)] rounded-xs w-19/20 sm:8/10"
+      >
         <h2 class="text-2xl font-bold font-display text-purple-950">{category.name.clone()}</h2>
         <table class="w-full table-fixed">
           <thead>
@@ -144,7 +147,11 @@ fn ForumRow(forum: Forum) -> impl IntoView {
     view! {
       <tr class="text-purple-900 not-last:border-dotted not-last:border-purple-300 not-last:border-b-4">
         <th scope="row" class="text-lg">
-          <A href=forum.id.to_string() {..} class="font-bold underline hover:no-underline">
+          <A
+            href=forum.id.to_string()
+            {..}
+            class="block overflow-hidden w-full font-bold underline whitespace-nowrap hover:no-underline overflow-ellipsis"
+          >
             {forum.name}
           </A>
         </th>
@@ -200,22 +207,27 @@ pub fn ForumOverview() -> impl IntoView {
         };
         EitherOf3::C(view! {
           <Title text=forum.name.to_string() formatter=title_format />
-          <nav class="self-start">
-            <a href="/" class="font-medium text-blue-600 underline hover:no-underline">
-              "Forum"
+          <nav class="mb-2 w-full text-purple-900">
+            <a href="/forum" class="font-medium underline hover:no-underline">
+              "Forums"
             </a>
             " -> "
-            {category_name.to_string()}
-            " -> "
+            // adding IDs and linking to it sucks in SPA - it will only scroll to it on page refresh
             <a
-              href=format!("/forum/{}", forum.id)
-              class="font-medium text-blue-600 underline hover:no-underline"
+              href=format!("/forum#{}", clean_name_for_id(&category_name))
+              class="font-medium underline hover:no-underline"
             >
+              {category_name.to_string()}
+            </a>
+            " -> "
+            <a href=format!("/forum/{}", forum.id) class="font-medium hover:underline">
               {forum.name.to_string()}
             </a>
           </nav>
-          <h2 class="text-4xl font-bold">{forum.name}</h2>
-          <p>"Forum id: "{forum.id}</p>
+          <h1 class="mb-2 text-3xl font-extrabold md:text-4xl lg:text-5xl text-purple-950 font-display">
+            {forum.name}
+          </h1>
+          <p>"Here will come a short description of the forum some day"</p>
         })
     };
 
@@ -248,8 +260,11 @@ pub fn ForumOverview() -> impl IntoView {
     // idfk im too stoopid (see) ThreadOverview suspense also waiting for <Posts /> to load
     Either::Right(view! {
       <Suspense fallback=waiting_view>
-        {forum_head_view} <Show when=move || error().is_none() fallback=errored_view>
-          <Threads forum_id=id />
+        <section class="p-4 bg-purple-200 w-19/20 rounded-xs sm:8/10">{forum_head_view}</section>
+        <Show when=move || error().is_none() fallback=errored_view>
+          <section class="w-19/20 sm:8/10">
+            <Threads forum_id=id />
+          </section>
         </Show>
       </Suspense>
     })
@@ -583,4 +598,16 @@ pub fn PostItem(post: Post) -> impl IntoView {
         </article>
       </li>
     }
+}
+
+/// Cleans up a [`Category`] name or w/e to make it usable as the id of an HTML element
+///
+/// See <https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/id>
+fn clean_name_for_id(name: &str) -> String {
+    let mut new = String::new();
+    for word in name.split_ascii_whitespace() {
+        new.push_str(word);
+    }
+
+    new
 }
