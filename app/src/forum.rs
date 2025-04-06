@@ -224,9 +224,14 @@ pub fn ForumOverview() -> impl IntoView {
               {forum.name.to_string()}
             </a>
           </nav>
-          <h1 class="mb-2 text-3xl font-extrabold md:text-4xl lg:text-5xl text-purple-950 font-display">
-            {forum.name}
-          </h1>
+          <div class="flex flex-wrap justify-between mb-2">
+            <h1 class="text-3xl font-extrabold md:text-4xl lg:text-5xl text-purple-950 font-display">
+              {forum.name}
+            </h1>
+            <button class="flex justify-center items-center py-1 px-2 text-sm font-bold text-purple-100 bg-purple-800 rounded-2xl sm:py-2 sm:px-4 md:py-3 md:px-6 md:text-lg lg:text-xl hover:bg-purple-900 hover:cursor-pointer sm:text-md">
+              "Create Thread"
+            </button>
+          </div>
           <p>"Here will come a short description of the forum some day"</p>
         })
     };

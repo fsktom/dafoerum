@@ -216,7 +216,7 @@ fn HomePage() -> impl IntoView {
       <A
         href="forum"
         {..}
-        class="flex justify-center items-center p-5 h-20 text-2xl font-bold text-purple-100 uppercase bg-purple-800 rounded-2xl hover:bg-purple-900 hover:cursor-pointer flexl w-md"
+        class="flex justify-center items-center p-5 h-20 text-2xl font-bold text-purple-100 uppercase bg-purple-800 rounded-2xl hover:bg-purple-900 hover:cursor-pointer w-md"
       >
         "Go to the forum"
       </A>
