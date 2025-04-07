@@ -1,5 +1,3 @@
-#![allow(clippy::too_many_lines)]
-
 use crate::TimeUtils;
 use crate::api;
 use api::{ApiError, Category, Forum, Post, Thread};
@@ -233,6 +231,21 @@ pub fn ForumOverview() -> impl IntoView {
             <h1 class="text-3xl font-extrabold md:text-4xl lg:text-5xl text-purple-950 font-display">
               {forum.name}
             </h1>
+            // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button#browser_compatibility
+            // https://developer.mozilla.org/en-US/docs/Web/API/HTMLButtonElement/commandForElement
+            // requires VERY recent browser (Chrome Apr 2025 +) and experiment enabled on firefox/safari
+            // but I'm gonna require this because KEKW
+            // it's very new and discovered it by accident while perusing button mdn
+            // and was wondering why it didn't work (and why I couldn't google it easily)
+            // on macos i stil lhave chrome 134 (and it requries 135 to work xd)
+            // and not much stuff online cuz new
+
+            // better than using NodeRef .show_modal() with on:click
+            // <button
+            // commandfor="create-thread-modal"
+            // command="show-modal"
+
+            // do it when it's more supported and works properly or you updated chrome
             <button
               on:click=move |_| {
                 create_thread_modal_ref.get().unwrap().show_modal().unwrap();
@@ -274,12 +287,13 @@ pub fn ForumOverview() -> impl IntoView {
     // edit: Tbh IM NOT FUCKING SURE. Suspend::new() stuff also makes it fall back in other stuff
     // idfk im too stoopid (see) ThreadOverview suspense also waiting for <Posts /> to load
     let forum_id = id;
+    let create_thread_modal_id = "create-thread-modal";
     Either::Right(view! {
       <Suspense fallback=waiting_view>
         <section class="p-4 bg-purple-200 w-19/20 rounded-xs sm:8/10">{forum_head_view}</section>
         <Show when=move || error().is_none() fallback=errored_view>
           <section class="w-19/20 sm:8/10">
-            <CreateThreadModal forum_id create_thread_modal_ref />
+            <CreateThreadModal id=create_thread_modal_id forum_id create_thread_modal_ref />
             <ThreadList forum_id />
           </section>
         </Show>
@@ -287,12 +301,17 @@ pub fn ForumOverview() -> impl IntoView {
     })
 }
 
-/// Renders a modal of thread creation
+/// Renders a modal of thread creation with the given `id`
+/// (for `<button>` use with `commandfor` later)
 ///
 /// Takes in a [`NodeRef`] to the dialog created in this component
 /// but created earlier, so that it can be used by parent [`ForumOverview`]
 #[component]
-pub fn CreateThreadModal(forum_id: u32, create_thread_modal_ref: NodeRef<Dialog>) -> impl IntoView {
+pub fn CreateThreadModal(
+    id: &'static str,
+    forum_id: u32,
+    create_thread_modal_ref: NodeRef<Dialog>,
+) -> impl IntoView {
     let create_thread = ServerAction::<api::CreateThread>::new();
 
     // redirect to created thread on thread creation
@@ -323,48 +342,58 @@ pub fn CreateThreadModal(forum_id: u32, create_thread_modal_ref: NodeRef<Dialog>
         let msg = match e {
             ApiError::EmptyContent => "Post content cannot be empty!".into(),
             ApiError::EmptySubject => "Subject cannot be empty!".into(),
-            _ => format!("Error from server: {e}"),
+            _ => e.to_string(),
         };
 
-        Either::Right(view! { <p class="text-lg font-bold text-red-700">{msg}</p> })
+        let view = view! {
+          <div class="flex flex-col justify-center items-center p-2 mb-4 text-lg font-bold text-red-700 bg-red-50 border-2 border-red-400">
+            <p class="font-bold">"Error from server:"</p>
+            <p>{msg}</p>
+          </div>
+        };
+        Either::Right(view)
     };
 
     view! {
       <dialog
         node_ref=create_thread_modal_ref
-        class="fixed top-1/2 left-1/2 p-4 rounded-xl -translate-x-1/2 -translate-y-1/2 sm:p-8 backdrop:backdrop-blur-xs w-xs sm:w-sm md:w-md"
+        id=id
+        class="fixed top-1/2 left-1/2 p-4 text-purple-900 bg-purple-50 rounded-xl border-2 border-purple-200 -translate-x-1/2 -translate-y-1/2 sm:p-8 md:p-12 backdrop:backdrop-blur-xs w-xs sm:w-sm md:w-md"
       >
         {form_errored_view}
         <ActionForm action=create_thread attr:class="w-full">
           <input class="hidden" name="forum_id" value=forum_id />
-          <label>
+          <label class="font-medium">
             "Subject"
             <input
               name="subject"
-              placeholder="Write a subject..."
-              class="block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+              placeholder="Greatest thread ever"
+              class="p-2.5 mb-2 w-full text-sm font-normal bg-purple-100 rounded-lg border border-purple-400 placeholder:italic"
             />
           </label>
-          <label>
+          <label class="font-medium">
             "Content"
             <textarea
               name="post_content"
               rows="5"
-              placeholder="Type here using Markdown (soon\u{2122})"
-              class="py-2 px-4 w-full text-sm text-gray-900 bg-white rounded-t-lg border-0 focus:ring-0 placeholder:italic"
+              placeholder="Type here using Markdown (soon\u{2122})..."
+              class="py-2 px-4 mb-4 w-full text-sm font-normal bg-purple-100 rounded-lg border border-purple-400 placeholder:italic"
             ></textarea>
           </label>
-          <div class="flex justify-between items-center py-2 px-3 border-t border-gray-200">
-            <input
-              type="submit"
-              value="Create Thread"
-              class="inline-flex items-center py-2.5 px-4 text-xs font-medium text-center text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:ring-blue-200"
-            />
-          </div>
+          <input
+            type="submit"
+            value="Create Thread"
+            class="flex justify-center items-center py-1 mb-2 w-full font-bold text-purple-100 bg-purple-800 rounded-lg sm:py-2 sm:text-lg md:text-xl hover:bg-purple-900 hover:cursor-pointer text-md"
+          />
         </ActionForm>
-        <button on:click=move |_| {
-          create_thread_modal_ref.get().unwrap().close();
-        }>"Cancel culture vermisse weebs finn.. leaaa "</button>
+        // <button commandfor="create-thread-modal" command="close" class="p-2 bg-purple-100">
+        <form method="dialog">
+          <input
+            type="submit"
+            value="Cancel"
+            class="flex justify-center items-center py-1 mb-2 w-full font-bold text-red-50 bg-red-800 rounded-lg sm:py-2 sm:text-lg md:text-xl hover:bg-red-900 hover:cursor-pointer text-md"
+          />
+        </form>
       </dialog>
     }
 }

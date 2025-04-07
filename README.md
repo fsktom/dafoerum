@@ -37,6 +37,14 @@ On Admin Powershell:
 netsh interface portproxy add v4tov4 listenport=3000 listenaddress=0.0.0.0 connectport=3000 connectaddress=$((wsl hostname -I).Trim())
 ```
 
+### Clippy
+
+Like rust-analyzer in VSC
+
+```sh
+cargo clippy --workspace --all-features
+```
+
 ## General Plan
 
 I've been thinking about what I want to do with this project. I like creating things,

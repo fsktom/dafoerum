@@ -48,7 +48,7 @@ unsafe_code = "deny"
 
 [workspace.lints.clippy]
 # cargo = "warn"
-pedantic = "warn"
+pedantic = {level="warn", priority = -1}
 # missing_docs_in_private_items = "warn"
 clone_on_ref_ptr = "warn" # be explicit on cheap cloning
 get_unwrap = "warn"
