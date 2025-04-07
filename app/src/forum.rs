@@ -1,8 +1,11 @@
+#![allow(clippy::too_many_lines)]
+
 use crate::TimeUtils;
 use crate::api;
 use api::{ApiError, Category, Forum, Post, Thread};
 
 use leptos::either::{Either, EitherOf3};
+use leptos::html::Dialog;
 use leptos::html::ol;
 use leptos::{logging, prelude::*};
 use leptos_meta::Title;
@@ -186,6 +189,8 @@ pub fn ForumOverview() -> impl IntoView {
         });
     };
 
+    let create_thread_modal_ref = NodeRef::<Dialog>::new();
+
     let (error, set_error) = signal::<Option<ApiError>>(None);
 
     let forum_res = Resource::new(move || (), move |()| api::get_forum(id));
@@ -228,7 +233,12 @@ pub fn ForumOverview() -> impl IntoView {
             <h1 class="text-3xl font-extrabold md:text-4xl lg:text-5xl text-purple-950 font-display">
               {forum.name}
             </h1>
-            <button class="flex justify-center items-center py-1 px-2 text-sm font-bold text-purple-100 bg-purple-800 rounded-2xl sm:py-2 sm:px-4 md:py-3 md:px-6 md:text-lg lg:text-xl hover:bg-purple-900 hover:cursor-pointer sm:text-md">
+            <button
+              on:click=move |_| {
+                create_thread_modal_ref.get().unwrap().show_modal().unwrap();
+              }
+              class="flex justify-center items-center py-1 px-2 text-sm font-bold text-purple-100 bg-purple-800 rounded-2xl sm:py-2 sm:px-4 md:py-3 md:px-6 md:text-lg lg:text-xl hover:bg-purple-900 hover:cursor-pointer sm:text-md"
+            >
               "Create Thread"
             </button>
           </div>
@@ -263,26 +273,27 @@ pub fn ForumOverview() -> impl IntoView {
     // and.. for the above to work, Suspense only works on resources in its DIRECT children?
     // edit: Tbh IM NOT FUCKING SURE. Suspend::new() stuff also makes it fall back in other stuff
     // idfk im too stoopid (see) ThreadOverview suspense also waiting for <Posts /> to load
+    let forum_id = id;
     Either::Right(view! {
       <Suspense fallback=waiting_view>
         <section class="p-4 bg-purple-200 w-19/20 rounded-xs sm:8/10">{forum_head_view}</section>
         <Show when=move || error().is_none() fallback=errored_view>
           <section class="w-19/20 sm:8/10">
-            <Threads forum_id=id />
+            <CreateThreadModal forum_id create_thread_modal_ref />
+            <ThreadList forum_id />
           </section>
         </Show>
       </Suspense>
     })
 }
 
-/// Renders a list of all [`Threads`][Thread] of a given [`Forum`]
+/// Renders a modal of thread creation
+///
+/// Takes in a [`NodeRef`] to the dialog created in this component
+/// but created earlier, so that it can be used by parent [`ForumOverview`]
 #[component]
-pub fn Threads(forum_id: u32) -> impl IntoView {
+pub fn CreateThreadModal(forum_id: u32, create_thread_modal_ref: NodeRef<Dialog>) -> impl IntoView {
     let create_thread = ServerAction::<api::CreateThread>::new();
-    let threads_res: Resource<Result<Vec<Thread>, ApiError>> =
-        Resource::new(move || (), move |()| api::get_threads(forum_id));
-
-    let (error, set_error) = signal::<Option<ApiError>>(None);
 
     // redirect to created thread on thread creation
     Effect::new(move |_| {
@@ -295,6 +306,76 @@ pub fn Threads(forum_id: u32) -> impl IntoView {
             navigate(&url, leptos_router::NavigateOptions::default());
         }
     });
+
+    // server-side error handling
+    let form_errored_view = move || {
+        // will be None before first dispatch
+        let Some(val) = create_thread.value().get() else {
+            return Either::Left(().into_view());
+        };
+        // Will be Ok if no errors occured
+        let Err(e) = val else {
+            return Either::Left(().into_view());
+        };
+
+        logging::log!("{e:?} - {e}");
+
+        let msg = match e {
+            ApiError::EmptyContent => "Post content cannot be empty!".into(),
+            ApiError::EmptySubject => "Subject cannot be empty!".into(),
+            _ => format!("Error from server: {e}"),
+        };
+
+        Either::Right(view! { <p class="text-lg font-bold text-red-700">{msg}</p> })
+    };
+
+    view! {
+      <dialog
+        node_ref=create_thread_modal_ref
+        class="fixed top-1/2 left-1/2 p-4 rounded-xl -translate-x-1/2 -translate-y-1/2 sm:p-8 backdrop:backdrop-blur-xs w-xs sm:w-sm md:w-md"
+      >
+        {form_errored_view}
+        <ActionForm action=create_thread attr:class="w-full">
+          <input class="hidden" name="forum_id" value=forum_id />
+          <label>
+            "Subject"
+            <input
+              name="subject"
+              placeholder="Write a subject..."
+              class="block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+            />
+          </label>
+          <label>
+            "Content"
+            <textarea
+              name="post_content"
+              rows="5"
+              placeholder="Type here using Markdown (soon\u{2122})"
+              class="py-2 px-4 w-full text-sm text-gray-900 bg-white rounded-t-lg border-0 focus:ring-0 placeholder:italic"
+            ></textarea>
+          </label>
+          <div class="flex justify-between items-center py-2 px-3 border-t border-gray-200">
+            <input
+              type="submit"
+              value="Create Thread"
+              class="inline-flex items-center py-2.5 px-4 text-xs font-medium text-center text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:ring-blue-200"
+            />
+          </div>
+        </ActionForm>
+        <button on:click=move |_| {
+          create_thread_modal_ref.get().unwrap().close();
+        }>"Cancel culture vermisse weebs finn.. leaaa "</button>
+      </dialog>
+    }
+}
+
+/// Renders a list of all [`Threads`][Thread] of a given [`Forum`]
+#[component]
+pub fn ThreadList(forum_id: u32) -> impl IntoView {
+    let threads_res: Resource<Result<Vec<Thread>, ApiError>> =
+        Resource::new(move || (), move |()| api::get_threads(forum_id));
+
+    let (error, set_error) = signal::<Option<ApiError>>(None);
 
     let thread_list_view = move || {
         Suspend::new(async move {
@@ -329,61 +410,16 @@ pub fn Threads(forum_id: u32) -> impl IntoView {
         })
     };
 
-    // server-side error handling
-    let form_errored_view = move || {
-        // will be None before first dispatch
-        let Some(val) = create_thread.value().get() else {
-            return Either::Left(().into_view());
-        };
-        // Will be Ok if no errors occured
-        let Err(e) = val else {
-            return Either::Left(().into_view());
-        };
-
-        logging::log!("{e:?} - {e}");
-
-        let msg = match e {
-            ApiError::EmptyContent => "Post content cannot be empty!".into(),
-            ApiError::EmptySubject => "Subject cannot be empty!".into(),
-            _ => format!("Error from server: {e}"),
-        };
-
-        Either::Right(view! { <p class="text-lg font-bold text-red-700">{msg}</p> })
-    };
     let waiting_view = move || {
         view! { <p>"Loading the threads..."</p> }
     };
 
     view! {
       <Suspense fallback=waiting_view>
-        {form_errored_view} <Show when=move || error().is_some()>
+        <Show when=move || error().is_some()>
           <p>"big error"</p>
         </Show>
-        <ActionForm
-          action=create_thread
-          attr:class="mb-4 w-full max-w-md bg-gray-50 rounded-lg border border-gray-200"
-        >
-          // I hope there's a better way to do this...
-          <input class="hidden" name="forum_id" value=forum_id />
-          <input
-            name="subject"
-            placeholder="Write a subject..."
-            class="block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-          />
-          <textarea
-            name="post_content"
-            rows="5"
-            placeholder="Write a post..."
-            class="py-2 px-4 w-full text-sm text-gray-900 bg-white rounded-t-lg border-0 focus:ring-0 placeholder:italic"
-          ></textarea>
-          <div class="flex justify-between items-center py-2 px-3 border-t border-gray-200">
-            <input
-              type="submit"
-              value="Create Thread"
-              class="inline-flex items-center py-2.5 px-4 text-xs font-medium text-center text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:ring-blue-200"
-            />
-          </div>
-        </ActionForm> <ol class="mb-2 text-lg font-semibold text-gray-900">{thread_list_view}</ol>
+        <ol class="mb-2 text-lg font-semibold text-gray-900">{thread_list_view}</ol>
       </Suspense>
     }
 }

@@ -52,6 +52,7 @@ pedantic = "warn"
 # missing_docs_in_private_items = "warn"
 clone_on_ref_ptr = "warn" # be explicit on cheap cloning
 get_unwrap = "warn"
+too_many_lines = "allow" # stoopid
 
 [workspace.lints.rustdoc]
 # todo

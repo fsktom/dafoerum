@@ -147,7 +147,7 @@ fn NavBar() -> impl IntoView {
           "Dafoerum"
         </div>
         <div class="flex flex-wrap justify-between items-center p-4 max-w-screen-xl">
-          <ul class="flex flex-row gap-5 font-medium rounded-lg border-0">
+          <menu class="flex flex-row gap-5 font-medium rounded-lg border-0">
             <NavLink href="/" matching=&[MatchPath::Full("")] content="Home" pathname=path />
             <NavLink
               href="/forum"
@@ -167,7 +167,7 @@ fn NavBar() -> impl IntoView {
               content="Profile"
               pathname=path
             />
-          </ul>
+          </menu>
         </div>
         <div class="hidden invisible md:block lg:w-40 md:w-30"></div>
       </nav>
