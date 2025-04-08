@@ -96,7 +96,7 @@ pub fn App() -> impl IntoView {
               </ParentRoute>
 
               <Route path=path!("/thread/:id/") view=Faq />
-              <Route path=path!("/thread/:id") view=forum::ThreadOverview />
+              <Route path=path!("/thread/:id") view=forum::thread::ThreadOverview />
             </Routes>
           </div>
         </main>
@@ -246,7 +246,7 @@ fn Latest() -> impl IntoView {
             set_is_loading(false);
             let view = posts
                 .into_iter()
-                .map(|post| forum::PostItem(forum::PostItemProps { post }))
+                .map(|post| forum::thread::PostItem(forum::thread::PostItemProps { post }))
                 .collect_view();
             Either::Right(ol().class("flex flex-col gap-2").child(view))
         })
