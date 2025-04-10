@@ -1,67 +1,12 @@
 // use crate::TimeUtils;
 use crate::api;
-use api::{ApiError, Post, Thread};
+use api::{ApiError, Post};
 
 use leptos::either::Either;
 use leptos::html::ol;
 use leptos::{logging, prelude::*};
 // use leptos_meta::Title;
 use leptos_router::{hooks::use_params, params::Params};
-
-/// Renders a list of all [`Threads`][Thread] of a given [`Forum`]
-#[component]
-pub fn ThreadList(forum_id: u32) -> impl IntoView {
-    let threads_res: Resource<Result<Vec<Thread>, ApiError>> =
-        Resource::new(move || (), move |()| api::get_threads(forum_id));
-
-    let (error, set_error) = signal::<Option<ApiError>>(None);
-
-    let thread_list_view = move || {
-        Suspend::new(async move {
-            let threads = match threads_res.await {
-                Ok(threads) => {
-                    set_error(None);
-                    threads
-                }
-                Err(err) => {
-                    logging::log!("{err:?} - {err}");
-                    set_error(Some(err));
-                    return Either::Left(().into_view());
-                }
-            };
-            Either::Right(
-                threads
-                    .into_iter()
-                    .map(|thread| {
-                        view! {
-                          <li class="space-y-1 max-w-md list-disc list-inside text-gray-500">
-                            <a
-                              href=format!("/thread/{}", thread.id)
-                              class="font-medium text-blue-600 underline hover:no-underline"
-                            >
-                              {thread.subject}
-                            </a>
-                          </li>
-                        }
-                    })
-                    .collect_view(),
-            )
-        })
-    };
-
-    let waiting_view = move || {
-        view! { <p>"Loading the threads..."</p> }
-    };
-
-    view! {
-      <Suspense fallback=waiting_view>
-        <Show when=move || error().is_some()>
-          <p>"big error"</p>
-        </Show>
-        <ol class="mb-2 text-lg font-semibold text-gray-900">{thread_list_view}</ol>
-      </Suspense>
-    }
-}
 
 /// Parameters for /thread/:id
 #[derive(Params, PartialEq, Clone, Copy)]
@@ -230,6 +175,7 @@ fn Posts(thread_id: u32) -> impl IntoView {
           name="content"
           rows="5"
           placeholder="Write a post..."
+          required
           on:input:target=move |ev| {
             if !ev.target().value().is_empty() {
               set_client_error.set("none".to_string());

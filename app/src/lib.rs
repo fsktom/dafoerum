@@ -162,8 +162,14 @@ fn NavBar() -> impl IntoView {
               pathname=path
             />
             <NavLink
+              href="/wiki"
+              matching=&[MatchPath::Start("wiki")]
+              content="Wiki"
+              pathname=path
+            />
+            <NavLink
               href="/profile"
-              matching=&[MatchPath::Full("profile")]
+              matching=&[MatchPath::Start("profile")]
               content="Profile"
               pathname=path
             />

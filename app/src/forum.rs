@@ -2,7 +2,7 @@ pub mod thread;
 
 use crate::TimeUtils;
 use crate::api;
-use api::{ApiError, Category, Forum};
+use api::{ApiError, Category, Forum, Thread};
 
 use leptos::either::{Either, EitherOf3};
 use leptos::html::Dialog;
@@ -296,7 +296,7 @@ pub fn ForumOverview() -> impl IntoView {
           <section class="p-4 bg-purple-200 w-19/20 rounded-xs sm:8/10">{forum_head_view}</section>
           <section class="w-19/20 sm:8/10">
             <CreateThreadModal id=create_thread_modal_id forum_id create_thread_modal_ref />
-            <thread::ThreadList forum_id />
+            <ThreadList forum_id />
           </section>
         </Show>
       </Suspense>
@@ -305,6 +305,8 @@ pub fn ForumOverview() -> impl IntoView {
 
 /// Renders a modal of thread creation with the given `id`
 /// (for `<button>` use with `commandfor` later)
+///
+/// Creates a [`Thread`] and its origin [`Post`]
 ///
 /// Takes in a [`NodeRef`] to the dialog created in this component
 /// but created earlier, so that it can be used by parent [`ForumOverview`]
@@ -371,6 +373,7 @@ pub fn CreateThreadModal(
             <input
               name="subject"
               placeholder="Greatest thread ever"
+              required
               class="p-2.5 mb-2 w-full text-sm font-normal bg-purple-100 rounded-lg border border-purple-400 placeholder:italic"
             />
           </label>
@@ -380,6 +383,8 @@ pub fn CreateThreadModal(
               name="post_content"
               rows="5"
               placeholder="Type here using Markdown (soon\u{2122})..."
+              required
+              wrap="soft"
               class="py-2 px-4 mb-4 w-full text-sm font-normal bg-purple-100 rounded-lg border border-purple-400 placeholder:italic"
             ></textarea>
           </label>
@@ -398,6 +403,61 @@ pub fn CreateThreadModal(
           />
         </form>
       </dialog>
+    }
+}
+
+/// Renders a list of all [`Threads`][Thread] of a given [`Forum`]
+#[component]
+pub fn ThreadList(forum_id: u32) -> impl IntoView {
+    let threads_res: Resource<Result<Vec<Thread>, ApiError>> =
+        Resource::new(move || (), move |()| api::get_threads(forum_id));
+
+    let (error, set_error) = signal::<Option<ApiError>>(None);
+
+    let thread_list_view = move || {
+        Suspend::new(async move {
+            let threads = match threads_res.await {
+                Ok(threads) => {
+                    set_error(None);
+                    threads
+                }
+                Err(err) => {
+                    logging::log!("{err:?} - {err}");
+                    set_error(Some(err));
+                    return Either::Left(().into_view());
+                }
+            };
+            Either::Right(
+                threads
+                    .into_iter()
+                    .map(|thread| {
+                        view! {
+                          <li class="space-y-1 max-w-md list-disc list-inside text-gray-500">
+                            <a
+                              href=format!("/thread/{}", thread.id)
+                              class="font-medium text-blue-600 underline hover:no-underline"
+                            >
+                              {thread.subject}
+                            </a>
+                          </li>
+                        }
+                    })
+                    .collect_view(),
+            )
+        })
+    };
+
+    let waiting_view = move || {
+        view! { <p>"Loading the threads..."</p> }
+    };
+
+    view! {
+      <Suspense fallback=waiting_view>
+        <Show when=move || error().is_some()>
+          <p>"big error"</p>
+        </Show>
+        <ol class="mb-2 text-lg font-semibold text-gray-900">{thread_list_view}</ol>
+      </Suspense>
     }
 }
 
