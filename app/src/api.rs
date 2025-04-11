@@ -46,6 +46,8 @@ pub enum ApiError {
     EmptySubject,
 }
 impl FromServerFnError for ApiError {
+    type Encoder = server_fn::codec::JsonEncoding;
+
     fn from_server_fn_error(value: ServerFnErrorErr) -> Self {
         ApiError::ServerFn(value)
     }
