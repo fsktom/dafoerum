@@ -9,18 +9,10 @@ lto = true
 opt-level = 'z'
 
 [workspace.dependencies]
-# leptos = { version = "0.7", features = ["nightly"] }
-# leptos_meta = { version = "0.7" }
-# leptos_router = { version = "0.7", features = ["nightly"] }
-# leptos_axum = { version = "0.7" }
-leptos = { git = "https://github.com/leptos-rs/leptos.git", branch = "main", features = [
-    "nightly",
-] }
-leptos_meta = { git = "https://github.com/leptos-rs/leptos.git", branch = "main" }
-leptos_router = { git = "https://github.com/leptos-rs/leptos.git", branch = "main", features = [
-    "nightly",
-] }
-leptos_axum = { git = "https://github.com/leptos-rs/leptos.git", branch = "main" }
+leptos = { version = "=0.8.0-rc1", features = ["nightly"] }
+leptos_meta = { version = "=0.8.0-rc1" }
+leptos_router = { version = "=0.8.0-rc1", features = ["nightly"] }
+leptos_axum = { version = "=0.8.0-rc1" }
 
 axum = { version = "0.8", features = ["macros"] }
 cfg-if = "1"
