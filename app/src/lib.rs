@@ -143,7 +143,7 @@ fn NavBar() -> impl IntoView {
       // hide on mobile - TBD: mobile navbar hamburger
       <nav class="hidden justify-around w-full h-20 bg-purple-700 sm:flex shadow-[0_3px_0_theme(colors.purple.300)]">
         // solid light purple "shadow" to seperate nav from main
-        <div class="hidden justify-center items-center w-20 text-lg font-bold text-purple-50 uppercase md:flex md:text-xl lg:w-40 lg:text-2xl font-display md:w-30">
+        <div class="hidden justify-center items-center w-20 text-lg font-bold text-purple-50 uppercase md:flex md:text-xl lg:w-40 lg:text-2xl font-title md:w-30">
           "Dafoerum"
         </div>
         <div class="flex flex-wrap justify-between items-center p-4 max-w-screen-xl">
