@@ -25,7 +25,7 @@ use leptos_router::{
 };
 
 pub trait TimeUtils {
-    /// Pretty prints how long ago given date was from now
+    /// Pretty prints how many minutes ago given date was from now
     fn ago(self) -> String;
 }
 impl TimeUtils for jiff::Timestamp {

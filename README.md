@@ -23,7 +23,7 @@ You have to have installed:
 ### Dev Build
 
 ```sh
-LEPTOS_TAILWIND_VERSION=v4.1.3 cargo leptos watch --hot-reload
+LEPTOS_TAILWIND_VERSION=v4.1.4 cargo leptos watch --hot-reload
 ```
 
 ### WSL Port Forwarding
@@ -65,3 +65,10 @@ but combine it with the old-school and clear way like the AB Forum
 ## Useful Links
 
 - <https://tailwindcss.com/docs/responsive-design>
+
+## Things to look out for when working with leptos
+
+Hydration errors -.-
+
+- don't nest Resources inside of Suspense
+  - <https://github.com/leptos-rs/leptos/issues/3726#issuecomment-2744401302>

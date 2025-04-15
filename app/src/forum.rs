@@ -2,7 +2,7 @@ pub mod thread;
 
 use crate::TimeUtils;
 use crate::api;
-use api::{ApiError, Category, Forum, Thread};
+use api::{ApiError, Category, Forum, Post, Thread};
 
 use leptos::either::{Either, EitherOf3};
 use leptos::html::Dialog;
@@ -252,7 +252,7 @@ pub fn ForumOverview() -> impl IntoView {
               on:click=move |_| {
                 create_thread_modal_ref.get().unwrap().show_modal().unwrap();
               }
-              class="flex justify-center items-center py-1 px-2 text-sm font-bold text-purple-100 bg-purple-800 rounded-2xl sm:py-2 sm:px-4 md:py-3 md:px-6 md:text-lg lg:text-xl hover:bg-purple-900 hover:cursor-pointer sm:text-md"
+              class="flex justify-center items-center py-1 px-2 text-sm font-bold text-purple-100 bg-purple-800 rounded-full sm:py-2 sm:px-4 md:py-3 md:px-6 md:text-lg lg:text-xl hover:bg-purple-900 hover:cursor-pointer sm:text-md"
             >
               "Create Thread"
             </button>
@@ -294,7 +294,7 @@ pub fn ForumOverview() -> impl IntoView {
       <Suspense fallback=waiting_view>
         <Show when=move || error().is_none() fallback=errored_view>
           <section class="p-4 bg-purple-200 w-19/20 rounded-xs sm:8/10">{forum_head_view}</section>
-          <section class="w-19/20 sm:8/10">
+          <section class="p-4 bg-purple-200 w-19/20 rounded-xs sm:8/10">
             <CreateThreadModal id=create_thread_modal_id forum_id create_thread_modal_ref />
             <ThreadList forum_id />
           </section>
@@ -409,14 +409,13 @@ pub fn CreateThreadModal(
 /// Renders a list of all [`Threads`][Thread] of a given [`Forum`]
 #[component]
 pub fn ThreadList(forum_id: u32) -> impl IntoView {
-    let threads_res: Resource<Result<Vec<Thread>, ApiError>> =
-        Resource::new(move || (), move |()| api::get_threads(forum_id));
+    let threads_res = Resource::new(move || (), move |()| api::get_threads(forum_id));
 
     let (error, set_error) = signal::<Option<ApiError>>(None);
 
     let thread_list_view = move || {
         Suspend::new(async move {
-            let threads = match threads_res.await {
+            let mut threads = match threads_res.await {
                 Ok(threads) => {
                     set_error(None);
                     threads
@@ -427,37 +426,87 @@ pub fn ThreadList(forum_id: u32) -> impl IntoView {
                     return Either::Left(().into_view());
                 }
             };
-            Either::Right(
-                threads
-                    .into_iter()
-                    .map(|thread| {
-                        view! {
-                          <li class="space-y-1 max-w-md list-disc list-inside text-gray-500">
-                            <a
-                              href=format!("/thread/{}", thread.id)
-                              class="font-medium text-blue-600 underline hover:no-underline"
-                            >
-                              {thread.subject}
-                            </a>
-                          </li>
-                        }
+
+            // show threads with more recent activity first
+            threads.sort_unstable_by_key(|(_, _, post)| std::cmp::Reverse(post.created_at));
+
+            let view = threads
+                .into_iter()
+                .map(|(thread, post_count, latest_post)| {
+                    ThreadRow(ThreadRowProps {
+                        thread,
+                        post_count,
+                        latest_post,
                     })
-                    .collect_view(),
-            )
+                })
+                .collect_view();
+            Either::Right(view)
         })
     };
 
-    let waiting_view = move || {
-        view! { <p>"Loading the threads..."</p> }
-    };
-
     view! {
-      <Suspense fallback=waiting_view>
-        <Show when=move || error().is_some()>
-          <p>"big error"</p>
-        </Show>
-        <ol class="mb-2 text-lg font-semibold text-gray-900">{thread_list_view}</ol>
-      </Suspense>
+      <Show
+        when=move || error().is_none()
+        fallback=move || {
+          view! {
+            <p class="text-lg font-bold text-center text-red-700">
+              "Threads couldn't be loaded due to an error: "
+              {error().unwrap_or_default().to_string()}
+            </p>
+          }
+        }
+      >
+
+        <table class="w-full table-fixed">
+          <thead>
+            <tr>
+              <th scope="col" class="w-40">
+                "Thread"
+              </th>
+              <th scope="col" class="w-20">
+                "Last activity"
+              </th>
+              <th scope="col" class="w-10">
+                "#"
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <Suspense fallback=move || {
+              view! {
+                <tr class="text-purple-900">
+                  <th scope="row" colspan="3" class="text-2xl text-center animate-bounce">
+                    "\u{2026}"
+                  </th>
+                </tr>
+              }
+            }>{thread_list_view}</Suspense>
+          </tbody>
+        </table>
+      </Show>
+    }
+}
+
+/// A table row representing a [`Thread`]
+#[component]
+fn ThreadRow(thread: Thread, post_count: u64, latest_post: Post) -> impl IntoView {
+    view! {
+      <tr class="text-center text-purple-900 not-last:border-dotted not-last:border-purple-300 not-last:border-b-4">
+        <th scope="row" class="text-lg">
+          <a
+            href=format!("/thread/{}", thread.id)
+            class="block overflow-hidden w-full font-bold underline whitespace-nowrap hover:no-underline overflow-ellipsis"
+          >
+            {thread.subject}
+          </a>
+        </th>
+
+        <td class="py-2 leading-5 text-center">
+          <time datetime=latest_post.created_at.to_string()>{latest_post.created_at.ago()}</time>
+          " minutes ago"
+        </td>
+        <td class="py-2 leading-5 text-center">{post_count}</td>
+      </tr>
     }
 }
 

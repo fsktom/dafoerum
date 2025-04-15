@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Error type used for backend-frontend interaction
-#[derive(Debug, Clone, Error, Deserialize, Serialize)]
+#[derive(Debug, Clone, Error, Deserialize, Serialize, Default)]
 pub enum ApiError {
     /// A wrapper around [`ServerFnErrorErr`], basically whenever something
     /// happens between the request and response
@@ -44,6 +44,11 @@ pub enum ApiError {
     /// Used when the subject of a thread is empty
     #[error("subject cannot be empty")]
     EmptySubject,
+
+    /// Dummy error for ergonomics of `.unwrap_or_default()`
+    #[default]
+    #[error("this shouldn't happen!")]
+    Dummy,
 }
 impl FromServerFnError for ApiError {
     type Encoder = server_fn::codec::JsonEncoding;
@@ -220,21 +225,31 @@ pub async fn get_thread(thread_id: u32) -> Result<Thread, ApiError> {
     helper::get_thread(thread_id, db).await
 }
 
-/// Fetches all [`Threads`][Thread] of a given [`Forum`] from the database in id-descending order
+/// Fetches all [`Threads`][Thread] with their [`Post`]count and its latest [`Post`]
+/// of a given [`Forum`] from the database in id-descending order
 #[server]
-pub async fn get_threads(forum_id: u32) -> Result<Vec<Thread>, ApiError> {
+pub async fn get_threads(forum_id: u32) -> Result<Vec<(Thread, u64, Post)>, ApiError> {
     let db = helper::get_db()?;
     // tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+    let post_col = Post::collection(&db);
     let thread_col = Thread::collection(&db);
+
     let mut threads = vec![];
     let mut threads_cursor = thread_col
         .find(bson::doc! {"forum_id": forum_id})
         // descending
         .sort(bson::doc! {"id": -1})
         .await?;
+
     while threads_cursor.advance().await? {
-        threads.push(threads_cursor.deserialize_current()?);
+        let thread = threads_cursor.deserialize_current()?;
+        let post_count = post_col
+            .count_documents(bson::doc! {"thread_id": thread.id})
+            .await?;
+        let latest_post = helper::get_post(thread.latest_post_id, db.clone()).await?;
+        threads.push((thread, post_count, latest_post));
     }
+
     Ok(threads)
 }
 
